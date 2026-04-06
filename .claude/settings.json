@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pandoc \"d:\\\\SIT\\\\S2\\\\584\\\\proj\\\\Detective\\\\Report Yuting_Jiang.docx\" -o /tmp/report_output.md)",
+      "Bash(python -c \":*)",
+      "Bash(pip install python-docx -q)"
+    ]
+  }
+}

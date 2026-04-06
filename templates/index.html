@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>侦探游戏</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Special+Elite&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1008;
+    --paper: #f5ead8;
+    --aged: #e8d5b0;
+    --shadow: #8b6914;
+    --blood: #8b1a1a;
+    --gold: #c9973a;
+    --dim: #6b5a3e;
+    --mist: rgba(245,234,216,0.85);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0d0a06;
+    color: var(--ink);
+    font-family: 'Noto Serif SC', 'Playfair Display', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(139,105,20,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(139,26,26,0.06) 0%, transparent 50%),
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.01) 2px, rgba(255,255,255,0.01) 4px);
+    pointer-events: none; z-index: 0;
+  }
+
+  #app {
+    position: relative; z-index: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+  }
+
+  .main-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr 260px;
+    gap: 20px;
+    align-items: start;
+  }
+  .sidebar-left, .sidebar-right {
+    position: sticky;
+    top: 20px;
+  }
+  @media (max-width: 1100px) {
+    .main-layout {
+      grid-template-columns: 1fr;
+    }
+    .sidebar-left, .sidebar-right {
+      position: static;
+    }
+  }
+
+  /* ---- Masthead ---- */
+  .masthead {
+    text-align: center;
+    padding: 40px 20px 20px;
+    border-bottom: 2px solid var(--gold);
+    margin-bottom: 30px;
+    position: relative;
+  }
+  .masthead::after {
+    content: '\2726 \2726 \2726';
+    display: block;
+    color: var(--gold);
+    font-size: 12px;
+    letter-spacing: 8px;
+    margin-top: 12px;
+  }
+  .masthead h1 {
+    font-family: 'Noto Serif SC', 'Playfair Display', serif;
+    font-size: clamp(28px, 5vw, 48px);
+    color: var(--paper);
+    letter-spacing: 4px;
+    text-shadow: 0 0 40px rgba(201,151,58,0.4);
+    line-height: 1.2;
+  }
+  .masthead h1 em { color: var(--blood); font-style: italic; }
+  .masthead .subtitle {
+    font-family: 'Special Elite', cursive;
+    color: var(--gold);
+    font-size: 13px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin-top: 8px;
+    opacity: 0.8;
+  }
+
+  /* ---- Case File ---- */
+  .case-file {
+    background: var(--paper);
+    border: 1px solid var(--shadow);
+    padding: 30px;
+    margin-bottom: 25px;
+    position: relative;
+    box-shadow: 4px 4px 20px rgba(0,0,0,0.5), inset 0 0 60px rgba(139,105,20,0.05);
+  }
+  .case-file::before {
+    content: '\6848\4EF6\5377\5B97';
+    font-family: 'Noto Serif SC', serif;
+    font-size: 10px;
+    letter-spacing: 4px;
+    color: var(--blood);
+    position: absolute;
+    top: 12px; right: 16px;
+    opacity: 0.7;
+  }
+  .case-file h2 { font-size: 18px; color: var(--blood); margin-bottom: 12px; font-style: italic; }
+  .case-file p { font-size: 14px; line-height: 1.9; color: var(--dim); }
+  .case-file .stamp {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 20px;
+    color: var(--blood);
+    opacity: 0.25;
+    border: 3px solid var(--blood);
+    display: inline-block;
+    padding: 4px 12px;
+    transform: rotate(-8deg);
+    position: absolute;
+    bottom: 20px; right: 30px;
+    letter-spacing: 3px;
+  }
+
+  /* ---- Suspect Cards ---- */
+  .suspects-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 25px;
+  }
+  .suspect-card {
+    background: var(--paper);
+    border: 1px solid var(--shadow);
+    padding: 18px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    box-shadow: 3px 3px 12px rgba(0,0,0,0.4);
+  }
+  .suspect-card:hover { transform: translateY(-2px); box-shadow: 4px 6px 20px rgba(0,0,0,0.5); }
+  .suspect-card.active {
+    border-color: var(--gold);
+    box-shadow: 0 0 20px rgba(201,151,58,0.3), 3px 3px 12px rgba(0,0,0,0.4);
+  }
+  .suspect-card.active::after {
+    content: '\25bc \6b63\5728\4ea4\8c08';
+    font-family: 'Noto Serif SC', serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--gold);
+    display: block;
+    text-align: center;
+    margin-top: 8px;
+  }
+  .suspect-avatar { font-size: 36px; text-align: center; display: block; margin-bottom: 10px; filter: grayscale(0.3); }
+  .suspect-name { font-size: 14px; font-weight: 700; color: var(--ink); text-align: center; margin-bottom: 4px; }
+  .suspect-role {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 10px;
+    color: var(--blood);
+    text-align: center;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+  .suspect-desc { font-size: 11px; color: var(--dim); line-height: 1.6; text-align: center; }
+
+  /* ---- Interrogation Room ---- */
+  .interrogation-room {
+    background: var(--paper);
+    border: 1px solid var(--shadow);
+    margin-bottom: 20px;
+    box-shadow: 4px 4px 20px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .room-header {
+    background: var(--ink);
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .room-header .lamp { font-size: 18px; }
+  .room-header span {
+    font-family: 'Noto Serif SC', serif;
+    color: var(--gold);
+    font-size: 12px;
+    letter-spacing: 3px;
+  }
+  .chat-log {
+    height: 360px;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background:
+      repeating-linear-gradient(transparent, transparent 27px, rgba(139,105,20,0.08) 27px, rgba(139,105,20,0.08) 28px);
+  }
+  .chat-log::-webkit-scrollbar { width: 4px; }
+  .chat-log::-webkit-scrollbar-track { background: var(--aged); }
+  .chat-log::-webkit-scrollbar-thumb { background: var(--shadow); }
+
+  .msg { display: flex; gap: 12px; align-items: flex-start; animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .msg.player { flex-direction: row-reverse; }
+  .msg-avatar {
+    font-size: 24px; flex-shrink: 0;
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--aged);
+    border: 1px solid var(--shadow);
+  }
+  .msg-body { max-width: 72%; }
+  .msg-sender {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 10px; letter-spacing: 2px;
+    color: var(--shadow); margin-bottom: 4px;
+  }
+  .msg.player .msg-sender { text-align: right; }
+  .msg-text {
+    background: white;
+    border: 1px solid rgba(139,105,20,0.2);
+    padding: 10px 14px;
+    font-size: 13.5px; line-height: 1.75;
+    color: var(--ink);
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.08);
+  }
+  .msg.player .msg-text { background: #f0e6cc; border-color: var(--shadow); }
+  .msg-text.thinking { color: var(--dim); font-style: italic; }
+  .thinking-dots span {
+    display: inline-block; animation: blink 1.2s infinite;
+    font-size: 18px; color: var(--shadow);
+  }
+  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
+
+  /* ---- Input Area ---- */
+  .input-area {
+    border-top: 1px solid var(--shadow);
+    background: var(--aged);
+    padding: 14px 18px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .input-area textarea {
+    flex: 1;
+    background: white;
+    border: 1px solid var(--shadow);
+    padding: 10px 14px;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 13.5px;
+    color: var(--ink);
+    resize: none;
+    outline: none;
+    min-height: 44px;
+    max-height: 100px;
+    line-height: 1.6;
+    box-shadow: inset 1px 1px 4px rgba(0,0,0,0.1);
+  }
+  .input-area textarea:focus { border-color: var(--gold); }
+  .input-area textarea::placeholder { color: var(--dim); opacity: 0.6; }
+  .send-btn {
+    background: var(--ink);
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    padding: 10px 20px;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 12px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    height: 44px;
+  }
+  .send-btn:hover { background: var(--gold); color: var(--ink); }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ---- Evidence Panel ---- */
+  .evidence-panel {
+    background: var(--paper);
+    border: 1px solid var(--shadow);
+    margin-bottom: 20px;
+    box-shadow: 4px 4px 20px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .evidence-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px 14px 8px;
+  }
+  .evidence-tag {
+    background: var(--aged);
+    border: 1px solid var(--shadow);
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Noto Serif SC', serif;
+  }
+  .evidence-tag:hover { background: var(--gold); color: white; border-color: var(--gold); }
+  .evidence-tag.active { background: var(--gold); color: white; border-color: var(--gold); }
+  .evidence-result {
+    padding: 0 14px 14px;
+    font-size: 13.5px;
+    line-height: 1.8;
+    color: var(--dim);
+    min-height: 40px;
+  }
+  .evidence-result .matched-key {
+    font-weight: 700;
+    color: var(--blood);
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  /* ---- Evidence keywords in case description ---- */
+  .evidence-keyword {
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-color: var(--gold);
+    text-underline-offset: 3px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .evidence-keyword:hover { color: var(--blood); background: rgba(201,151,58,0.12); }
+  .evidence-keyword.collected {
+    color: var(--dim);
+    text-decoration-color: var(--dim);
+    opacity: 0.6;
+    cursor: default;
+  }
+  .evidence-empty {
+    padding: 16px 18px;
+    font-size: 12px;
+    color: var(--dim);
+    font-style: italic;
+  }
+
+  /* ---- Conditions / Progress Panel ---- */
+  .progress-panel {
+    background: #fdf8ed;
+    border: 1px dashed var(--shadow);
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 3px 3px 12px rgba(0,0,0,0.3);
+    position: relative;
+  }
+  .progress-title {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--shadow);
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--aged);
+  }
+  .progress-bar-track {
+    height: 6px;
+    background: var(--aged);
+    border-radius: 3px;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--blood));
+    border-radius: 3px;
+    transition: width 0.6s ease;
+    width: 0%;
+  }
+  .progress-count {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 11px;
+    color: var(--dim);
+    text-align: right;
+    margin-bottom: 10px;
+  }
+  .condition-list { display: flex; flex-direction: column; gap: 6px; }
+  .condition-item {
+    font-size: 12px;
+    padding: 6px 10px;
+    border-left: 3px solid var(--aged);
+    color: var(--dim);
+    font-style: italic;
+    transition: all 0.3s;
+  }
+  .condition-item.unlocked {
+    border-left-color: var(--gold);
+    color: var(--ink);
+    font-style: normal;
+    background: rgba(201,151,58,0.08);
+  }
+
+  /* ---- Notes Panel ---- */
+  .notes-panel {
+    background: #fdf8ed;
+    border: 1px dashed var(--shadow);
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 3px 3px 12px rgba(0,0,0,0.3);
+    position: relative;
+  }
+  .notes-panel .notes-title {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--shadow);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--aged);
+  }
+  .notes-panel textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 13px;
+    color: var(--dim);
+    resize: none;
+    height: 280px;
+    line-height: 2;
+  }
+
+  /* ---- Accusation ---- */
+  .accusation-bar { text-align: center; margin-bottom: 30px; }
+  .accuse-btn {
+    background: transparent;
+    color: var(--blood);
+    border: 2px solid var(--blood);
+    padding: 12px 36px;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 13px;
+    letter-spacing: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+  }
+  .accuse-btn:hover:not(:disabled) { background: var(--blood); color: var(--paper); }
+  .accuse-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .accuse-btn.unlocked {
+    opacity: 1;
+    animation: pulseGold 2s infinite;
+  }
+  @keyframes pulseGold {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(201,151,58,0); }
+    50% { box-shadow: 0 0 20px 4px rgba(201,151,58,0.4); }
+  }
+
+  /* ---- Modal ---- */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--paper);
+    border: 2px solid var(--gold);
+    padding: 35px;
+    max-width: 520px;
+    width: 90%;
+    box-shadow: 0 0 60px rgba(201,151,58,0.3);
+    animation: fadeIn 0.3s ease;
+  }
+  .modal h2 { font-size: 22px; color: var(--blood); margin-bottom: 16px; font-style: italic; text-align: center; }
+  .modal p { font-size: 13px; color: var(--dim); line-height: 1.8; margin-bottom: 20px; text-align: center; }
+  .modal label {
+    display: block;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--shadow);
+    margin-bottom: 6px;
+    margin-top: 14px;
+  }
+  .modal select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--shadow);
+    background: white;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    cursor: pointer;
+  }
+  .modal select:focus { border-color: var(--gold); }
+  .modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 24px;
+  }
+  .modal-submit {
+    background: var(--blood);
+    color: var(--paper);
+    border: none;
+    padding: 10px 28px;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 12px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .modal-submit:hover { opacity: 0.85; }
+  .modal-close {
+    background: transparent;
+    border: 1px solid var(--dim);
+    color: var(--dim);
+    padding: 10px 20px;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* ---- Verdict ---- */
+  .verdict {
+    background: var(--paper);
+    border: 3px double var(--gold);
+    padding: 30px;
+    text-align: center;
+    margin-top: 20px;
+    display: none;
+    animation: fadeIn 0.5s ease;
+  }
+  .verdict.show { display: block; }
+  .verdict h2 { font-size: 22px; color: var(--blood); margin-bottom: 16px; }
+  .verdict p { font-size: 14px; color: var(--dim); line-height: 1.9; }
+  .verdict .result-icon { font-size: 48px; margin-bottom: 16px; display: block; }
+
+  /* ---- Condition toast ---- */
+  .toast {
+    position: fixed;
+    top: 20px; right: 20px;
+    background: var(--ink);
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    padding: 14px 22px;
+    font-size: 13px;
+    font-family: 'Noto Serif SC', serif;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    z-index: 200;
+    animation: slideIn 0.4s ease, fadeOut 0.4s ease 2.6s forwards;
+    max-width: 360px;
+  }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Masthead -->
+  <div class="masthead">
+    <div class="subtitle">An Interactive Mystery</div>
+    <h1>侦探<em>推理</em>游戏</h1>
+  </div>
+
+  <!-- Case File -->
+  <div class="case-file">
+    <h2 id="caseTitle">案情摘要</h2>
+    <p id="caseDesc">加载中...</p>
+    <div class="stamp">未结案</div>
+  </div>
+
+  <!-- 3-Column Layout -->
+  <div class="main-layout">
+
+    <!-- Left Sidebar: Evidence + Progress -->
+    <div class="sidebar-left">
+      <div class="evidence-panel">
+        <div class="room-header">
+          <span class="lamp">&#128270;</span>
+          <span>证据室</span>
+        </div>
+        <div class="evidence-tags" id="evidenceTags"></div>
+        <div class="evidence-empty" id="evidenceEmpty">从案情摘要中点击证物名称收集证据...</div>
+        <div class="evidence-result" id="evidenceResult"></div>
+      </div>
+
+      <div class="progress-panel" id="progressPanel">
+        <div class="progress-title">调查进度</div>
+        <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
+        <div class="progress-count" id="progressCount">已发现 0 / 5 条线索</div>
+        <div class="condition-list" id="conditionList"></div>
+      </div>
+    </div>
+
+    <!-- Center: Suspects + Interrogation -->
+    <div class="main-center">
+      <div class="suspects-row" id="suspectsRow"></div>
+
+      <div class="interrogation-room">
+        <div class="room-header">
+          <span class="lamp">&#128367;</span>
+          <span id="roomTitle">审讯室</span>
+        </div>
+        <div class="chat-log" id="chatLog">
+          <div style="text-align:center; color:var(--dim); font-style:italic; font-size:13px; padding:20px;">
+            请从上方选择一位嫌疑人开始审讯...
+          </div>
+        </div>
+        <div class="input-area">
+          <textarea id="playerInput" placeholder="向嫌疑人提问..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>发问</button>
+        </div>
+      </div>
+
+      <div class="accusation-bar">
+        <button class="accuse-btn" id="accuseBtn" onclick="showDeductionModal()" disabled>最终推理</button>
+      </div>
+    </div>
+
+    <!-- Right Sidebar: Notes -->
+    <div class="sidebar-right">
+      <div class="notes-panel">
+        <div class="notes-title">侦探笔记</div>
+        <textarea placeholder="在此记录线索、矛盾点和推理..." id="detectiveNotes"></textarea>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Deduction Modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h2>最终推理</h2>
+      <p>提交你的调查结论。谁是凶手？怎么下的毒？动机是什么？</p>
+
+      <label>谁是凶手？</label>
+      <select id="deduceCulprit">
+        <option value="">-- 请选择 --</option>
+        <option value="Jordan">Jordan</option>
+        <option value="Morgan">Morgan</option>
+        <option value="Lucas">Lucas</option>
+      </select>
+
+      <label>毒药涂在了哪里？</label>
+      <select id="deduceLocation">
+        <option value="">-- 请选择 --</option>
+        <option value="cup">水杯</option>
+        <option value="utensil">餐具</option>
+        <option value="napkins">餐巾纸</option>
+        <option value="fried_chicken">炸鸡</option>
+        <option value="glasses">眼镜</option>
+      </select>
+
+      <label>作案动机是什么？</label>
+      <select id="deduceMotive">
+        <option value="">-- 请选择 --</option>
+        <option value="Economic dispute over contract">合同经济纠纷</option>
+        <option value="Workplace humiliation">职场羞辱</option>
+        <option value="Forced to relocate business">被迫搬迁店铺</option>
+      </select>
+
+      <div class="modal-actions">
+        <button class="modal-submit" onclick="submitDeduction()">提交推理</button>
+        <button class="modal-close" onclick="closeModal()">再想想</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verdict -->
+  <div class="verdict" id="verdict"></div>
+
+</div>
+
+<script>
+// ============================================================
+// GAME STATE
+// ============================================================
+const TOTAL_CONDITIONS = 5;
+const suspects = [
+  { name: 'Jordan', icon: '\uD83D\uDC54', role: '初级同事', desc: 'Daniel的下属。紧张、安静，明显受到过恐吓。' },
+  { name: 'Morgan', icon: '\uD83D\uDC88', role: '理发店老板', desc: '餐馆隔壁的店主。说话谨慎，显得疲惫。' },
+  { name: 'Lucas',  icon: '\uD83C\uDF73', role: '餐馆老板', desc: '脾气火爆，以厨艺自豪。很反感Daniel。' },
+];
+
+const chatHistories = [[], [], []];
+let currentSuspect = -1;
+let knownConditions = [];
+const collectedEvidence = new Set();
+let evidenceKeys = [];
+
+// ============================================================
+// INIT
+// ============================================================
+async function initGame() {
+  try {
+    const res = await fetch('/api/game-data');
+    const data = await res.json();
+    evidenceKeys = data.evidence_keys;
+
+    // Build keyword-to-evidence mapping (handle "两杯水" → "水杯" etc.)
+    const keywordMap = {};
+    evidenceKeys.forEach(k => { keywordMap[k] = k; });
+    keywordMap['两杯水'] = '水杯';
+
+    // Render case description with clickable evidence keywords
+    let desc = escHtml(data.case_description);
+    Object.keys(keywordMap).forEach(keyword => {
+      const evidenceName = keywordMap[keyword];
+      desc = desc.replace(keyword,
+        `<span class="evidence-keyword" data-evidence="${escAttr(evidenceName)}" onclick="collectEvidence('${escAttr(evidenceName)}', this)">${keyword}</span>`
+      );
+    });
+    document.getElementById('caseDesc').innerHTML = desc;
+
+    const row = document.getElementById('suspectsRow');
+    row.innerHTML = suspects.map((s, i) => `
+      <div class="suspect-card" id="card-${i}" onclick="selectSuspect(${i})">
+        <span class="suspect-avatar">${s.icon}</span>
+        <div class="suspect-name">${s.name}</div>
+        <div class="suspect-role">${s.role}</div>
+        <div class="suspect-desc">${s.desc}</div>
+      </div>
+    `).join('');
+
+    updateConditionsUI([]);
+  } catch (e) {
+    console.error('初始化失败:', e);
+  }
+}
+
+initGame();
+
+// ============================================================
+// SUSPECT SELECTION
+// ============================================================
+function selectSuspect(index) {
+  currentSuspect = index;
+  document.querySelectorAll('.suspect-card').forEach((c, i) => c.classList.toggle('active', i === index));
+  const s = suspects[index];
+  document.getElementById('roomTitle').textContent = `正在审讯 \u00b7 ${s.name}（${s.role}）`;
+  renderChat();
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('playerInput').focus();
+}
+
+// ============================================================
+// CHAT RENDERING
+// ============================================================
+function renderChat() {
+  const log = document.getElementById('chatLog');
+  const history = chatHistories[currentSuspect];
+  if (history.length === 0) {
+    const s = suspects[currentSuspect];
+    log.innerHTML = `<div style="text-align:center;color:var(--dim);font-style:italic;font-size:13px;padding:20px;">
+      ${s.icon} <strong>${s.name}</strong> 沉默地注视着你，等待你的第一个问题。
+    </div>`;
+    return;
+  }
+  log.innerHTML = history.map(m => {
+    if (m.role === 'user') {
+      return `<div class="msg player">
+        <div class="msg-avatar">\uD83D\uDD0D</div>
+        <div class="msg-body">
+          <div class="msg-sender">侦探</div>
+          <div class="msg-text">${escHtml(m.content)}</div>
+        </div>
+      </div>`;
+    } else {
+      const s = suspects[currentSuspect];
+      return `<div class="msg">
+        <div class="msg-avatar">${s.icon}</div>
+        <div class="msg-body">
+          <div class="msg-sender">${s.name}</div>
+          <div class="msg-text">${escHtml(m.content)}</div>
+        </div>
+      </div>`;
+    }
+  }).join('');
+  log.scrollTop = log.scrollHeight;
+}
+
+function addThinking() {
+  const log = document.getElementById('chatLog');
+  const s = suspects[currentSuspect];
+  const el = document.createElement('div');
+  el.className = 'msg'; el.id = 'thinkingMsg';
+  el.innerHTML = `
+    <div class="msg-avatar">${s.icon}</div>
+    <div class="msg-body">
+      <div class="msg-sender">${s.name}</div>
+      <div class="msg-text thinking"><div class="thinking-dots"><span>\u2022</span><span>\u2022</span><span>\u2022</span></div></div>
+    </div>`;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+}
+
+function removeThinking() {
+  const el = document.getElementById('thinkingMsg');
+  if (el) el.remove();
+}
+
+// ============================================================
+// SEND MESSAGE TO NPC
+// ============================================================
+async function sendMessage() {
+  if (currentSuspect < 0) return;
+  const input = document.getElementById('playerInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  input.value = '';
+  input.style.height = 'auto';
+
+  chatHistories[currentSuspect].push({ role: 'user', content: text });
+  renderChat();
+  addThinking();
+
+  try {
+    const res = await fetch('/api/ask-npc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ npc_name: suspects[currentSuspect].name, question: text })
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let replyText = '';
+    let streamingTextEl = null;
+    const suspectAtSend = currentSuspect;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // keep incomplete last line
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let payload;
+        try { payload = JSON.parse(line.slice(6)); } catch { continue; }
+
+        if (payload.chunk !== undefined) {
+          replyText += payload.chunk;
+
+          if (!streamingTextEl) {
+            removeThinking();
+            const s = suspects[suspectAtSend];
+            const log = document.getElementById('chatLog');
+            const el = document.createElement('div');
+            el.className = 'msg';
+            el.id = 'streamingMsg';
+            el.innerHTML = `
+              <div class="msg-avatar">${s.icon}</div>
+              <div class="msg-body">
+                <div class="msg-sender">${s.name}</div>
+                <div class="msg-text" id="streamingText"></div>
+              </div>`;
+            log.appendChild(el);
+            streamingTextEl = document.getElementById('streamingText');
+          }
+          streamingTextEl.textContent = replyText;
+          const log = document.getElementById('chatLog');
+          log.scrollTop = log.scrollHeight;
+
+        } else if (payload.done) {
+          document.getElementById('streamingMsg')?.remove();
+          chatHistories[suspectAtSend].push({ role: 'assistant', content: replyText });
+          if (suspectAtSend === currentSuspect) renderChat();
+
+          if (payload.conditions) {
+            const oldCount = knownConditions.length;
+            knownConditions = payload.conditions;
+            updateConditionsUI(payload.conditions);
+            if (payload.conditions.length > oldCount) {
+              payload.conditions.slice(oldCount).forEach(c => showToast(`发现新线索：${c}`));
+            }
+          }
+          if (payload.all_conditions_met) {
+            const accuseBtn = document.getElementById('accuseBtn');
+            accuseBtn.disabled = false;
+            accuseBtn.classList.add('unlocked');
+          }
+        }
+      }
+    }
+  } catch (err) {
+    removeThinking();
+    chatHistories[currentSuspect].push({ role: 'assistant', content: `[错误: ${err.message}]` });
+    renderChat();
+  }
+
+  btn.disabled = false;
+  input.focus();
+}
+
+// ============================================================
+// EVIDENCE COLLECTION
+// ============================================================
+function collectEvidence(name, spanEl) {
+  if (collectedEvidence.has(name)) return;
+  collectedEvidence.add(name);
+
+  // Mark keyword in case description as collected
+  document.querySelectorAll(`.evidence-keyword[data-evidence="${CSS.escape(name)}"]`).forEach(el => {
+    el.classList.add('collected');
+  });
+
+  renderEvidenceTags();
+  showToast(`收集证物：${name}`);
+}
+
+function renderEvidenceTags() {
+  const tags = document.getElementById('evidenceTags');
+  const empty = document.getElementById('evidenceEmpty');
+  if (collectedEvidence.size === 0) {
+    tags.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  tags.innerHTML = Array.from(collectedEvidence).map(k =>
+    `<span class="evidence-tag" onclick="showEvidenceDetail(this, '${escAttr(k)}')">${k}</span>`
+  ).join('');
+}
+
+async function showEvidenceDetail(el, name) {
+  document.querySelectorAll('.evidence-tag').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+
+  const resultDiv = document.getElementById('evidenceResult');
+  resultDiv.innerHTML = '<span style="color:var(--dim);font-style:italic;">查看中...</span>';
+
+  try {
+    const res = await fetch('/api/search-evidence', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item: name })
+    });
+    const data = await res.json();
+    resultDiv.innerHTML = `<span class="matched-key">${escHtml(name)}</span>${escHtml(data.result)}`;
+  } catch (err) {
+    resultDiv.innerHTML = `<span style="color:var(--blood);">[错误: ${err.message}]</span>`;
+  }
+}
+
+// ============================================================
+// CONDITIONS / PROGRESS
+// ============================================================
+function updateConditionsUI(conditions) {
+  const count = conditions.length;
+  const pct = (count / TOTAL_CONDITIONS) * 100;
+
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressCount').textContent = `已发现 ${count} / ${TOTAL_CONDITIONS} 条线索`;
+
+  const list = document.getElementById('conditionList');
+  let html = '';
+  for (let i = 0; i < TOTAL_CONDITIONS; i++) {
+    if (i < conditions.length) {
+      html += `<div class="condition-item unlocked">\u2713 ${escHtml(conditions[i])}</div>`;
+    } else {
+      html += `<div class="condition-item">??? 未发现的线索</div>`;
+    }
+  }
+  list.innerHTML = html;
+}
+
+// ============================================================
+// DEDUCTION
+// ============================================================
+function showDeductionModal() {
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+async function submitDeduction() {
+  const culprit = document.getElementById('deduceCulprit').value;
+  const location = document.getElementById('deduceLocation').value;
+  const motive = document.getElementById('deduceMotive').value;
+
+  if (!culprit || !location || !motive) {
+    alert('请填写全部三项。');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/deduce', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ culprit, location, motive })
+    });
+    const data = await res.json();
+    closeModal();
+
+    const verdict = document.getElementById('verdict');
+    verdict.classList.add('show');
+    verdict.scrollIntoView({ behavior: 'smooth' });
+
+    if (data.correct) {
+      document.querySelector('.case-file .stamp').textContent = '已结案';
+      document.querySelector('.case-file .stamp').style.color = 'var(--gold)';
+      document.querySelector('.case-file .stamp').style.borderColor = 'var(--gold)';
+      verdict.innerHTML = `
+        <span class="result-icon">\u2696\uFE0F</span>
+        <h2>案件告破！</h2>
+        <p>
+          你正确指认了 <strong>Morgan</strong> 为凶手。<br><br>
+          Morgan 将氰化钾涂在了Daniel的<strong>眼镜</strong>上。
+          当Daniel戴上眼镜后，被污染的手指接触了食物，
+          毒素由此进入他的体内。<br><br>
+          <em>动机：Daniel诱骗Morgan签下了一份掠夺性贷款合同，
+          把所谓的"帮助"变成了经济剥削。</em><br><br>
+          <strong>正义得到了伸张。</strong>
+        </p>`;
+    } else {
+      verdict.innerHTML = `
+        <span class="result-icon">\u274C</span>
+        <h2>推理有误</h2>
+        <p>
+          你的推理与证据不符。<br>
+          真正的凶手仍然逍遥法外。<br><br>
+          <em>提示：重新检查证据，再与嫌疑人交谈。
+          注意他们说辞中的矛盾之处。</em>
+        </p>
+        <button onclick="resetVerdict()" style="margin-top:16px; background:transparent; border:1px solid var(--dim); padding:8px 20px; cursor:pointer; font-size:13px; color:var(--dim);">继续调查</button>`;
+    }
+  } catch (err) {
+    alert('错误: ' + err.message);
+  }
+}
+
+function resetVerdict() {
+  const v = document.getElementById('verdict');
+  v.classList.remove('show');
+  v.innerHTML = '';
+}
+
+// ============================================================
+// TOAST NOTIFICATIONS
+// ============================================================
+function showToast(msg) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3200);
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+function escAttr(str) {
+  return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+{
+  "conditions": [
+    {
+      "name": "Daniel的眼镜腿是弯的",
+      "trigger_npc": "Jordan",
+      "trigger_fact_idx": 1,
+      "keywords": ["眼镜", "弯"],
+      "min_matches": 2,
+      "depends_on": null,
+      "overrides": [
+        {
+          "npc_name": "Lucas",
+          "fact_idx": 1,
+          "replace_text": "说起来，我记得他摘下眼镜来擦了一下再坐下的。外面很冷，镜片上了雾。不过现在想想……Morgan那天下午好像没戴眼镜？这有点奇怪。我一直以为他看柜台后面的小票需要戴眼镜的。"
+        },
+        {
+          "npc_name": "Morgan",
+          "fact_idx": 1,
+          "replace_text": "对。今天早上给他洗头的时候，我帮他把眼镜摘下来放在旁边了。我没注意有什么奇怪的——不过你这么一说，好像有一条腿确实有点弯。也可能本来就那样了，我当时没太留意。"
+        }
+      ]
+    },
+    {
+      "name": "Morgan平时戴眼镜",
+      "trigger_npc": "Lucas",
+      "trigger_fact_idx": 1,
+      "keywords": ["Morgan", "眼镜", "戴"],
+      "min_matches": 2,
+      "depends_on": "Daniel的眼镜腿是弯的",
+      "overrides": [
+        {
+          "npc_name": "Morgan",
+          "fact_idx": 1,
+          "replace_text": "我的眼镜？我……那天大概忘在家里了。有时候会这样。近距离的东西我还是看得清的。没觉得吃个午饭需要戴。"
+        }
+      ]
+    },
+    {
+      "name": "Morgan的眼镜有疑点",
+      "trigger_npc": "Morgan",
+      "trigger_fact_idx": 1,
+      "keywords": ["眼镜", "忘", "家"],
+      "min_matches": 2,
+      "depends_on": "Morgan平时戴眼镜",
+      "overrides": []
+    },
+    {
+      "name": "Morgan突然签了合同",
+      "trigger_npc": "Jordan",
+      "trigger_fact_idx": 10,
+      "keywords": ["Morgan", "签"],
+      "min_matches": 2,
+      "depends_on": null,
+      "overrides": [
+        {
+          "npc_name": "Morgan",
+          "fact_idx": 9,
+          "replace_text": "Daniel说他们可以先给我一笔钱帮我找新地方，之后再慢慢还。没有压力，他是这么说的。所以我就签了。想着这是个出路。但没过多久，他拿着文件和还款期限回来了，说这是带利息的个人贷款。那时候我才明白——他根本不是在帮我。他从一开始就在设套骗我。"
+        }
+      ]
+    },
+    {
+      "name": "Morgan和Daniel有经济纠纷",
+      "trigger_npc": "Morgan",
+      "trigger_fact_idx": 9,
+      "keywords": ["贷款", "利息", "签", "骗", "还"],
+      "min_matches": 2,
+      "depends_on": null,
+      "overrides": []
+    },
+    {
+      "name": "Lucas提到Daniel骂人",
+      "trigger_npc": "Lucas",
+      "trigger_fact_idx": 12,
+      "keywords": ["Daniel", "数落", "骂", "客人"],
+      "min_matches": 2,
+      "depends_on": null,
+      "overrides": [
+        {
+          "npc_name": "Jordan",
+          "fact_idx": 9,
+          "replace_text": "确实——Daniel对我从来不客气。他经常骂人，尤其是事情不如他意的时候。有时候在大街上，有时候直接当着客人的面。说我太慢了，不够果断。但我发誓，我从没想过要他死。我只是在努力做好我的工作。"
+        }
+      ]
+    }
+  ],
+  "required_for_deduction": [
+    "Daniel的眼镜腿是弯的",
+    "Morgan平时戴眼镜",
+    "Morgan的眼镜有疑点",
+    "Morgan突然签了合同",
+    "Morgan和Daniel有经济纠纷"
+  ]
+}
