@@ -12,6 +12,7 @@ pip install -r requirements.txt
 
 ```
 OPENAI_API_KEY=sk-...
+CLAUDE_API_KEY=sk-ant-...
 ```
 
 启动：
@@ -35,11 +36,22 @@ python app.py
 
 ---
 
+## AI 侦探模式
+
+点击「AI侦探自动调查」可进入观战模式，由 Claude 自主审讯三位嫌疑人：
+
+- Claude 通过 tool use 调用 `ask_npc` 和 `search_evidence` 驱动调查
+- 必须触发全部 5 条线索后，才能调用 `make_accusation` 提交指控
+- 实时展示推理过程、问答记录和线索进度
+
+---
+
 ## 技术
 
 | 组件 | 实现 |
 |------|------|
-| LLM | OpenAI `gpt-4o-mini`，temperature=0.3，SSE 流式输出 |
+| NPC LLM | OpenAI `gpt-4o-mini`，temperature=0.3，SSE 流式输出 |
+| AI 侦探 | Anthropic `claude-sonnet-4-6`，tool use 驱动 ReAct 循环 |
 | 后端 | Flask + `stream_with_context` |
 | 前端 | 原生 HTML/CSS/JS，noir 复古风格，三栏布局 |
 | 条件检测 | 关键词指纹匹配，零额外 API 开销 |
@@ -49,7 +61,8 @@ python app.py
 
 ```
 Detective/
-├── app.py                  # 入口 + Flask 服务器 + API 路由
+├── app.py                  # Flask 服务器 + API 路由
+├── detective_agent.py      # AI 侦探 Agent（tool use 循环）
 ├── npc_agent.py            # 单个 NPC LLM Agent
 ├── npc_agent_manager.py    # 3 个 Agent 编排 + 条件检测
 ├── condition_detector.py   # 关键词触发检测

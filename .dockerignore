@@ -16,7 +16,7 @@ __pycache__/
 # Project docs (local only)
 tasks/
 architecture.md
-rag.py
+
 
 # OS
 Thumbs.db

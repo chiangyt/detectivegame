@@ -465,6 +465,105 @@
     50% { box-shadow: 0 0 20px 4px rgba(201,151,58,0.4); }
   }
 
+  /* ---- AI Detective Panel ---- */
+  .ai-detective-panel {
+    background: var(--paper);
+    border: 1px solid var(--shadow);
+    margin-bottom: 20px;
+    box-shadow: 4px 4px 20px rgba(0,0,0,0.4);
+    overflow: hidden;
+  }
+  .ai-detective-panel .room-header { cursor: pointer; user-select: none; }
+  .ai-detective-panel .room-header:hover { background: rgba(201,151,58,0.06); }
+  .ai-log {
+    height: 380px;
+    overflow-y: auto;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: repeating-linear-gradient(
+      transparent, transparent 27px,
+      rgba(139,105,20,0.06) 27px, rgba(139,105,20,0.06) 28px
+    );
+  }
+  .ai-log::-webkit-scrollbar { width: 4px; }
+  .ai-log::-webkit-scrollbar-thumb { background: var(--shadow); }
+  .ai-log-entry { animation: fadeIn 0.3s ease; }
+  .ai-log-entry.thought {
+    padding: 7px 12px;
+    border-left: 3px solid var(--gold);
+    background: rgba(201,151,58,0.05);
+    font-size: 12px; color: var(--dim); font-style: italic;
+  }
+  .ai-log-entry.thought .ai-target {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 11px; color: var(--shadow); margin-top: 3px; letter-spacing: 1px;
+  }
+  .ai-log-entry.ai-question { display: flex; gap: 8px; align-items: flex-start; }
+  .ai-log-entry.ai-question .ai-bubble {
+    background: #f0e6cc; border: 1px solid var(--shadow);
+    padding: 7px 11px; font-size: 13px; max-width: 82%;
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+  }
+  .ai-log-entry.ai-answer { display: flex; gap: 8px; align-items: flex-start; flex-direction: row-reverse; }
+  .ai-log-entry.ai-answer .ai-bubble {
+    background: white; border: 1px solid rgba(139,105,20,0.2);
+    padding: 7px 11px; font-size: 13px; max-width: 82%;
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.06);
+  }
+  .ai-bubble-label {
+    font-family: 'Noto Serif SC', serif; font-size: 10px;
+    color: var(--shadow); margin-bottom: 3px; letter-spacing: 1px;
+  }
+  .ai-log-entry.ai-clue {
+    padding: 7px 12px;
+    border-left: 3px solid var(--blood);
+    background: rgba(139,26,26,0.05);
+    font-family: 'Noto Serif SC', serif;
+    font-size: 12px; color: var(--blood); letter-spacing: 1px;
+  }
+  .ai-log-entry.ai-deduction {
+    padding: 10px 14px;
+    border-left: 3px solid var(--blood);
+    background: rgba(139,0,0,0.05);
+    font-size: 12px; color: var(--dim); line-height: 1.7;
+  }
+  .ai-log-entry.ai-deduction .ai-deduction-label {
+    font-size: 11px; color: var(--blood); font-weight: bold;
+    letter-spacing: 1px; margin-bottom: 5px;
+  }
+  .ai-log-entry.ai-accusation {
+    text-align: center; padding: 14px;
+    border: 2px solid var(--gold);
+    background: rgba(201,151,58,0.07);
+    margin-top: 6px;
+  }
+  .ai-log-entry.ai-accusation h3 { font-size: 15px; color: var(--blood); margin-bottom: 8px; }
+  .ai-log-entry.ai-accusation p { font-size: 12px; color: var(--dim); line-height: 1.8; }
+  .ai-controls {
+    padding: 12px 16px;
+    border-top: 1px solid var(--shadow);
+    background: var(--aged);
+    display: flex; gap: 12px; align-items: center;
+  }
+  .ai-start-btn {
+    background: var(--ink); color: var(--gold);
+    border: 1px solid var(--gold);
+    padding: 9px 22px;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 11px; letter-spacing: 3px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .ai-start-btn:hover:not(:disabled) { background: var(--gold); color: var(--ink); }
+  .ai-start-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .ai-status {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 11px; color: var(--dim);
+    letter-spacing: 1px; font-style: italic;
+  }
+  .ai-panel-toggle { margin-left: auto; color: var(--dim); font-size: 10px; }
+
   /* ---- Modal ---- */
   .modal-overlay {
     display: none;
@@ -625,6 +724,26 @@
         <div class="input-area">
           <textarea id="playerInput" placeholder="向嫌疑人提问..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
           <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>发问</button>
+        </div>
+      </div>
+
+      <!-- AI Detective Panel -->
+      <div class="ai-detective-panel">
+        <div class="room-header" onclick="toggleAiPanel()">
+          <span class="lamp">&#129399;</span>
+          <span>AI侦探 · 自动破案模式</span>
+          <span class="ai-panel-toggle" id="aiPanelToggle">▼ 展开</span>
+        </div>
+        <div id="aiPanelBody" style="display:none;">
+          <div class="ai-log" id="aiLog">
+            <div style="text-align:center;color:var(--dim);font-style:italic;font-size:13px;padding:20px;">
+              点击「开始调查」，AI侦探将自动审讯所有嫌疑人并尝试破案…
+            </div>
+          </div>
+          <div class="ai-controls">
+            <button class="ai-start-btn" id="aiStartBtn" onclick="startAiInvestigation()">开始调查</button>
+            <span class="ai-status" id="aiStatus">等待开始</span>
+          </div>
         </div>
       </div>
 
@@ -1085,6 +1204,182 @@ function escHtml(str) {
 }
 function escAttr(str) {
   return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// ============================================================
+// AI DETECTIVE
+// ============================================================
+let aiRunning = false;
+
+function toggleAiPanel() {
+  const body   = document.getElementById('aiPanelBody');
+  const toggle = document.getElementById('aiPanelToggle');
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? '' : 'none';
+  toggle.textContent = hidden ? '▲ 收起' : '▼ 展开';
+}
+
+function startAiInvestigation() {
+  if (aiRunning) return;
+  aiRunning = true;
+
+  const btn    = document.getElementById('aiStartBtn');
+  const log    = document.getElementById('aiLog');
+  const status = document.getElementById('aiStatus');
+
+  btn.disabled    = true;
+  btn.textContent = '调查中…';
+  status.textContent = '侦探正在调查…';
+  log.innerHTML = '';
+
+  // Ensure panel is open
+  document.getElementById('aiPanelBody').style.display = '';
+  document.getElementById('aiPanelToggle').textContent = '▲ 收起';
+
+  const prevConditions = [];
+
+  fetch('/api/auto-investigate')
+    .then(res => {
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer    = '';
+
+      function read() {
+        reader.read().then(({ done, value }) => {
+          if (done) { finishAi(); return; }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            let ev;
+            try { ev = JSON.parse(line.slice(6)); } catch { continue; }
+            handleAiEvent(ev, log, status, prevConditions);
+          }
+          read();
+        }).catch(() => finishAi());
+      }
+      read();
+    })
+    .catch(err => {
+      appendAiLog(log, 'ai-clue', `[错误: ${escHtml(err.message)}]`);
+      finishAi();
+    });
+}
+
+function handleAiEvent(ev, log, status, prevConditions) {
+  const NPC_ICONS = { Jordan: '&#128084;', Morgan: '&#128136;', Lucas: '&#127859;' };
+
+  switch (ev.type) {
+    case 'start':
+      status.textContent = ev.message;
+      break;
+
+    case 'thinking':
+      status.textContent = `第${ev.turn}轮 · 侦探思考中…`;
+      break;
+
+    case 'error':
+      appendAiLog(log, 'ai-clue', `⚠ ${escHtml(ev.message)}`);
+      break;
+
+    case 'thought':
+      appendAiLog(log, 'thought', `
+        <div>${escHtml(ev.reasoning)}</div>
+        <div class="ai-target">→ 准备问 <strong>${escHtml(ev.target)}</strong>：${escHtml(ev.question)}</div>
+      `);
+      break;
+
+    case 'question':
+      appendAiLog(log, 'ai-question', `
+        <div class="msg-avatar">&#128373;</div>
+        <div>
+          <div class="ai-bubble-label">侦探 → ${escHtml(ev.npc)}</div>
+          <div class="ai-bubble">${escHtml(ev.text)}</div>
+        </div>
+      `);
+      break;
+
+    case 'answer': {
+      const icon = NPC_ICONS[ev.npc] || '&#128100;';
+      appendAiLog(log, 'ai-answer', `
+        <div class="msg-avatar">${icon}</div>
+        <div>
+          <div class="ai-bubble-label">${escHtml(ev.npc)}</div>
+          <div class="ai-bubble">${escHtml(ev.text)}</div>
+        </div>
+      `);
+      break;
+    }
+
+    case 'observe': {
+      if (ev.conditions) {
+        const prevSet = new Set(prevConditions);
+        const newOnes = ev.conditions.filter(c => !prevSet.has(c));
+        newOnes.forEach(c => {
+          appendAiLog(log, 'ai-clue', `★ 新线索：${escHtml(c)}`);
+          showToast(`侦探发现：${c}`);
+        });
+        if (newOnes.length > 0) {
+          prevConditions.splice(0, prevConditions.length, ...ev.conditions);
+          updateConditionsUI(ev.conditions);
+        }
+      }
+      if (ev.all_met) status.textContent = '所有线索已收集，准备指控…';
+      break;
+    }
+
+    case 'deduction':
+      appendAiLog(log, 'ai-deduction', `
+        <div class="ai-deduction-label">🔍 作案过程推断</div>
+        ${ev.location ? `<div><strong>施毒位置：</strong>${escHtml(ev.location)}</div>` : ''}
+        <div>${escHtml(ev.process)}</div>
+      `);
+      status.textContent = '作案过程已推断，准备最终指控…';
+      break;
+
+    case 'accusation': {
+      const icon   = ev.correct ? '⚖' : (ev.accepted ? '✗' : '⏳');
+      const label  = ev.correct ? '侦探的最终指控' : (ev.accepted ? '指控已提交（答案有误）' : '指控被驳回（线索不足）');
+      appendAiLog(log, 'ai-accusation', `
+        <h3>${icon} ${label}</h3>
+        <p>
+          <strong>凶手：</strong>${escHtml(ev.culprit)}<br>
+          <strong>施毒位置：</strong>${escHtml(ev.location || '—')}<br>
+          <strong>动机：</strong>${escHtml(ev.motive)}<br><br>
+          <em>${escHtml(ev.reasoning)}</em>
+        </p>
+      `);
+      if (ev.correct) {
+        const accuseBtn = document.getElementById('accuseBtn');
+        accuseBtn.disabled = false;
+        accuseBtn.classList.add('unlocked');
+      }
+      break;
+    }
+
+    case 'done':
+      finishAi();
+      break;
+  }
+}
+
+function appendAiLog(log, cls, html) {
+  const el = document.createElement('div');
+  el.className = `ai-log-entry ${cls}`;
+  el.innerHTML = html;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+}
+
+function finishAi() {
+  aiRunning = false;
+  const btn = document.getElementById('aiStartBtn');
+  btn.disabled    = false;
+  btn.textContent = '重新调查';
+  document.getElementById('aiStatus').textContent = '调查完毕';
 }
 </script>
 </body>

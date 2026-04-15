@@ -86,6 +86,11 @@ class ScriptManager:
     def get_conditions(self):
         return list(self.conditions)
 
+    def get_required_conditions(self):
+        """Return only triggered conditions that are required for deduction (excludes distractors)."""
+        required = self.triggers_data.get("required_for_deduction", [])
+        return [c for c in required if c in self.conditions]
+
     def get_trigger_fingerprints(self):
         """Return conditions list from triggers.json (used by ConditionDetector)."""
         return self.triggers_data.get("conditions", [])

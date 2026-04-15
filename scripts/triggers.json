@@ -11,7 +11,7 @@
         {
           "npc_name": "Lucas",
           "fact_idx": 1,
-          "replace_text": "说起来，我记得他摘下眼镜来擦了一下再坐下的。外面很冷，镜片上了雾。不过现在想想……Morgan那天下午好像没戴眼镜？这有点奇怪。我一直以为他看柜台后面的小票需要戴眼镜的。"
+          "replace_text": "说起来，我记得他进门后摘下眼镜来擦了一下再坐下的。外面很冷，镜片上了雾。不过现在想想……Morgan好像没戴眼镜？这有点奇怪。我一直以为他看柜台后面的小票需要戴眼镜的。"
         },
         {
           "npc_name": "Morgan",
@@ -36,7 +36,7 @@
       ]
     },
     {
-      "name": "Morgan的眼镜有疑点",
+      "name": "Morgan今天没戴眼镜",
       "trigger_npc": "Morgan",
       "trigger_fact_idx": 1,
       "keywords": ["眼镜", "忘", "家"],
@@ -87,7 +87,7 @@
   "required_for_deduction": [
     "Daniel的眼镜腿是弯的",
     "Morgan平时戴眼镜",
-    "Morgan的眼镜有疑点",
+    "Morgan今天没戴眼镜",
     "Morgan突然签了合同",
     "Morgan和Daniel有经济纠纷"
   ]

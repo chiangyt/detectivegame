@@ -1,24 +1,22 @@
-# API keys and secrets
+# API keys
 api_key.env
 .env
+
+# Local docs
+*.md
+!README.md
+tasks/
 
 # Python
 __pycache__/
 *.py[cod]
 *.egg-info/
 
-# IDE
+# IDE / OS
 .idea/
 .vscode/
 .history/
 *.swp
-
-# Project docs (local only)
-tasks/
-architecture.md
-rag.py
-
-# OS
 Thumbs.db
 .DS_Store
 

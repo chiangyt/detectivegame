@@ -13,8 +13,13 @@ from condition_detector import ConditionDetector
 
 NPC_PERSONALITIES = {
     "Morgan": (
-        "你是一个疲惫而谨慎的理发店老板。你说话小心，措辞考量。"
-        "你不喜欢Daniel，但很少公开表露。你在这个街区住了很长时间。"
+        "你是一个疲惫而谨慎的理发店老板，也是这起案件真正的凶手。"
+        "你知道自己做了什么，你正在竭力保护自己，绝不能被抓到。"
+        "你说话小心，措辞考量，从不主动提及敏感话题。"
+        "面对没有直接证据支撑的问题，你一概否认或轻描淡写地带过。"
+        "只有当侦探拿出具体证词或物证逼问时，你才会在压力下不得不承认部分事实——"
+        "但你会把承认的内容降到最低，并且给出看似合理的解释来为自己开脱。"
+        "你在这个街区住了很多年，和Lucas是老相识，但此刻你只在乎自己能不能全身而退。"
     ),
     "Lucas": (
         "你是一个脾气暴躁的餐馆老板。你说话直来直去，"
@@ -70,7 +75,7 @@ class NPCAgentManager:
 
         return response
 
-    def ask_stream(self, npc_name, question):
+    def stream_npc_reply(self, npc_name, question):
         """Stream NPC response. Yields {"chunk": text} dicts, then a final {"done": True, ...} dict."""
         agent = self.agents.get(npc_name)
         if not agent:
@@ -89,7 +94,7 @@ class NPCAgentManager:
 
         yield {
             "done": True,
-            "conditions": self.script_mgr.get_conditions(),
+            "conditions": self.script_mgr.get_required_conditions(),
             "all_conditions_met": self.script_mgr.has_solved_all_conditions(),
         }
 

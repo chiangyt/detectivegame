@@ -6,6 +6,7 @@ Bridges the HTML frontend with existing Python backend modules.
 import json
 import os
 import openai
+import anthropic
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 
@@ -19,6 +20,21 @@ SCRIPT_PATH = os.path.join(HERE, "script.json")
 load_dotenv(os.path.join(HERE, "api_key.env"))
 _api_key = os.environ.get("OPENAI_API_KEY", "")
 _openai_client = openai.OpenAI(api_key=_api_key) if _api_key else None
+
+_claude_key = os.environ.get("CLAUDE_API_KEY", "")
+_anthropic_client = anthropic.Anthropic(api_key=_claude_key) if _claude_key else None
+
+# LangSmith tracing — wraps clients if LANGSMITH_API_KEY is set
+if os.environ.get("LANGSMITH_API_KEY"):
+    try:
+        from langsmith.wrappers import wrap_openai, wrap_anthropic
+        if _openai_client:
+            _openai_client = wrap_openai(_openai_client)
+        if _anthropic_client:
+            _anthropic_client = wrap_anthropic(_anthropic_client)
+        print("[LANGSMITH] Tracing enabled.")
+    except ImportError:
+        print("[LANGSMITH] langsmith not installed, skipping tracing.")
 
 script_mgr = ScriptManager(SCRIPT_PATH)
 raw_data = script_mgr.raw_script
@@ -58,7 +74,7 @@ def ask_npc():
         return jsonify({"error": "Missing npc_name or question"}), 400
 
     def generate():
-        for event in agent_manager.ask_stream(npc_name, question):
+        for event in agent_manager.stream_npc_reply(npc_name, question):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
     return Response(
@@ -86,10 +102,38 @@ def search_evidence():
     return jsonify({"result": result, "matched_key": matched_key})
 
 
+@app.route("/api/auto-investigate")
+def auto_investigate():
+    from detective_agent import DetectiveAgent
+    detective_script_mgr = ScriptManager(SCRIPT_PATH)
+    detective_agent_mgr = NPCAgentManager(
+        script_mgr=detective_script_mgr,
+        openai_client=_openai_client,
+        model="gpt-4o-mini",
+    )
+    detective_evidence_handler = EvidenceHandler(detective_script_mgr)
+    detective = DetectiveAgent(
+        agent_manager=detective_agent_mgr,
+        script_mgr=detective_script_mgr,
+        evidence_handler=detective_evidence_handler,
+        anthropic_client=_anthropic_client,
+    )
+
+    def generate():
+        for event in detective.run_stream():
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @app.route("/api/conditions")
 def get_conditions():
     return jsonify({
-        "conditions": script_mgr.get_conditions(),
+        "conditions": script_mgr.get_required_conditions(),
         "all_met": script_mgr.has_solved_all_conditions(),
     })
 
@@ -110,4 +154,4 @@ def deduce():
 
 if __name__ == "__main__":
     print(f"[SERVER] Starting Detective Game on http://localhost:5000")
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(debug=True)
