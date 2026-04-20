@@ -13,6 +13,7 @@ from flask import Flask, render_template, request, jsonify, Response, stream_wit
 from script_manager import ScriptManager
 from npc_agent_manager import NPCAgentManager
 from evidence_handler import EvidenceHandler
+from llm_router import LLMRouter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT_PATH = os.path.join(HERE, "script.json")
@@ -21,17 +22,20 @@ load_dotenv(os.path.join(HERE, "api_key.env"))
 _api_key = os.environ.get("OPENAI_API_KEY", "")
 _openai_client = openai.OpenAI(api_key=_api_key) if _api_key else None
 
+_api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+_deepseek_client = openai.OpenAI(api_key=_api_key, base_url="https://api.deepseek.com") if _api_key else None
+
 _claude_key = os.environ.get("CLAUDE_API_KEY", "")
 _anthropic_client = anthropic.Anthropic(api_key=_claude_key) if _claude_key else None
 
 # LangSmith tracing — wraps clients if LANGSMITH_API_KEY is set
 if os.environ.get("LANGSMITH_API_KEY"):
     try:
-        from langsmith.wrappers import wrap_openai, wrap_anthropic
+        from langsmith.wrappers import wrap_openai
         if _openai_client:
             _openai_client = wrap_openai(_openai_client)
-        if _anthropic_client:
-            _anthropic_client = wrap_anthropic(_anthropic_client)
+        if _deepseek_client:
+            _deepseek_client = wrap_openai(_deepseek_client)
         print("[LANGSMITH] Tracing enabled.")
     except ImportError:
         print("[LANGSMITH] langsmith not installed, skipping tracing.")
@@ -102,9 +106,20 @@ def search_evidence():
     return jsonify({"result": result, "matched_key": matched_key})
 
 
+DETECTIVE_PROVIDERS = {
+    "deepseek":  lambda: LLMRouter("openai",     _deepseek_client,   "deepseek-reasoner"),
+    "claude":    lambda: LLMRouter("anthropic",  _anthropic_client,  "claude-sonnet-4-6"),
+    "openai":    lambda: LLMRouter("openai",     _openai_client,     "gpt-4o"),
+}
+
 @app.route("/api/auto-investigate")
 def auto_investigate():
     from detective_agent import DetectiveAgent
+    provider = request.args.get("provider", "deepseek")
+    if provider not in DETECTIVE_PROVIDERS:
+        return jsonify({"error": f"Unknown provider '{provider}'. Choose from: {list(DETECTIVE_PROVIDERS)}"}), 400
+
+    router = DETECTIVE_PROVIDERS[provider]()
     detective_script_mgr = ScriptManager(SCRIPT_PATH)
     detective_agent_mgr = NPCAgentManager(
         script_mgr=detective_script_mgr,
@@ -116,7 +131,7 @@ def auto_investigate():
         agent_manager=detective_agent_mgr,
         script_mgr=detective_script_mgr,
         evidence_handler=detective_evidence_handler,
-        anthropic_client=_anthropic_client,
+        router=router,
     )
 
     def generate():
@@ -154,4 +169,4 @@ def deduce():
 
 if __name__ == "__main__":
     print(f"[SERVER] Starting Detective Game on http://localhost:5000")
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)

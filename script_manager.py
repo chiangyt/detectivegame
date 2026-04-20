@@ -21,9 +21,9 @@ class ScriptManager:
         Layout expected::
 
             scripts/
-                case.json        – case_description + evidence
-                triggers.json    – conditions, keyword fingerprints, overrides
-                jordan.json      – {npc_name, facts[]}
+                case.json         case_description + evidence
+                triggers.json     conditions, keyword fingerprints, overrides
+                jordan.json       {npc_name, facts[]}
                 morgan.json
                 lucas.json
         """

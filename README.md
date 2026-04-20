@@ -38,9 +38,9 @@ python app.py
 
 ## AI 侦探模式
 
-点击「AI侦探自动调查」可进入观战模式，由 Claude 自主审讯三位嫌疑人：
+点击「AI侦探自动调查」可进入观战模式，由 Deepseek 自主审讯三位嫌疑人：
 
-- Claude 通过 tool use 调用 `ask_npc` 和 `search_evidence` 驱动调查
+- Deepseek 通过 tool use 调用 `ask_npc` 和 `search_evidence` 驱动调查
 - 必须触发全部 5 条线索后，才能调用 `make_accusation` 提交指控
 - 实时展示推理过程、问答记录和线索进度
 
