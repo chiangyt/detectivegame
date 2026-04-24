@@ -60,7 +60,7 @@ http://localhost:5000/api/auto-investigate?provider=deepseek
 - 提交作案机制推断时，Claude 裁判会介入评审——推理不自洽则驳回并要求重新调查
 - 发现新线索时，系统自动向侦探注入提示，引导调查方向
 - 必须触发全部 6 条线索后，才能提交最终指控
-- 作案过程推断需要先收集 4 条物证/机会线索：眼镜腿异常、Morgan 平时戴眼镜、Morgan 当天没戴眼镜、Morgan 第一个查看 Daniel 尸体
+
 
 ---
 
