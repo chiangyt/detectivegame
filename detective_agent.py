@@ -27,6 +27,7 @@ EVIDENCE_CONDITIONS = [
     "Daniel的眼镜腿是弯的",
     "Morgan平时戴眼镜",
     "Morgan今天没戴眼镜",
+    "Morgan第一个查看Daniel尸体",
 ]
 
 MOTIVE_CONDITIONS = [
@@ -38,11 +39,13 @@ REQUIRED_CONDITIONS = EVIDENCE_CONDITIONS + MOTIVE_CONDITIONS
 
 def condition_hint(condition: str) -> str:
     if condition == "Daniel的眼镜腿是弯的":
-        return "现场眼镜完好无损，但Jordan提过Daniel的眼镜腿弯了 → 为什么现场遗留的眼镜是完好的？难道被掉包了？"
+        return "现场眼镜完好无损，但Jordan提过Daniel的眼镜腿弯了 → 为什么现场遗留的眼镜是完好的？难道被掉包了？需要问清楚谁在死者倒地后有机会接触他。"
     if condition == "Morgan平时戴眼镜":
         return "Lucas说Morgan平时会戴眼镜，但案发当天没戴 → 为什么刻意不戴？还是说发生了什么让他的眼镜无法戴上？"
     if condition == "Morgan今天没戴眼镜":
         return "Morgan声称眼镜忘在家里 → 结合平时必须戴眼镜，看来有重大嫌疑。"
+    if condition == "Morgan第一个查看Daniel尸体":
+        return "Lucas说Morgan是第一个冲过去查看Daniel的人 → Morgan有机会在混乱中接触尸体和眼镜。"
     if condition == "Morgan突然签了合同":
         return "Morgan在压力下签了搬迁补贴协议 → 背后存在经济动机"
     if condition == "Morgan和Daniel有经济纠纷":
@@ -103,7 +106,7 @@ TOOLS = [
             "name": "deduce_crime_process",
             "description": (
                 "提交对作案过程的推断：毒素施加在哪个物体上，以及物理传递机制。"
-                "需要在找到全部 3 条物证线索后才能提交，否则会被驳回。"
+                "需要在找到全部 4 条物证线索后才能提交，否则会被驳回。"
                 "提交成功后才能进行最终指控。"
             ),
             "parameters": {
@@ -141,7 +144,7 @@ TOOLS = [
                     },
                     "motive": {
                         "type": "string",
-                        "enum": ["合同经济纠纷", "职场羞辱", "被迫搬迁店铺"],
+                        "enum": ["合同经济纠纷", "职场羞辱", "被诬陷食物有毒"],
                         "description": "作案动机（从选项中选择）",
                     },
                     "reasoning": {
@@ -198,71 +201,110 @@ class DetectiveAgent:
 
         messages = [{"role": "user", "content": self._build_initial_prompt()}]
 
-        with ls_trace("detective_investigation", run_type="chain"):
-            for turn in range(self.max_turns):
-                yield {"type": "thinking", "turn": turn + 1}
+        try:
+            with ls_trace("detective_investigation", run_type="chain"):
+                turn = 0
+                while turn < self.max_turns:
+                    turn += 1
+                    yield {"type": "thinking", "turn": turn}
 
-                response = self.router.chat(
-                    messages=messages,
-                    tools=TOOLS,
-                    system=DETECTIVE_SYSTEM_PROMPT,
-                    max_tokens=1024,
-                    temperature=0.2,
-                )
+                    response = self.router.chat(
+                        messages=messages,
+                        tools=TOOLS,
+                        system=DETECTIVE_SYSTEM_PROMPT,
+                        max_tokens=2048,
+                        temperature=0.2,
+                    )
 
-                messages.append(self.router.make_assistant_message(response))
+                    messages.append(self.router.make_assistant_message(response))
 
-                if response.finish_reason == "stop":
-                    if (self.crime_process_deduced
-                            and self.script_mgr.has_solved_all_conditions()
-                            and not self._accusation_accepted):
-                        messages.append({"role": "user", "content": "作案过程已确认，所有线索已收集，请立即调用 make_accusation 提交最终指控。"})
+                    if response.finish_reason == "invalid_tool_calls":
+                        messages.append({
+                            "role": "user",
+                            "content": (
+                                f"{response.content}\n"
+                                "请不要输出普通文本。请重新调用刚才想调用的工具，并确保工具参数是完整合法的 JSON。"
+                            ),
+                        })
                         continue
-                    break
 
-                if response.finish_reason != "tool_calls":
-                    break
+                    if response.finish_reason == "stop":
+                        conditions = self.script_mgr.get_required_conditions()
+                        evidence_done = all(c in conditions for c in EVIDENCE_CONDITIONS)
+                        motive_done = all(c in conditions for c in MOTIVE_CONDITIONS)
 
-                should_stop = False
-                prev_conditions = set(self.script_mgr.get_required_conditions())
+                        if evidence_done and not self.crime_process_deduced:
+                            messages.append({
+                                "role": "user",
+                                "content": (
+                                    "不要结束调查。物证线索已齐全，你现在必须调用工具 "
+                                    "deduce_crime_process，提交作案过程推断。"
+                                ),
+                            })
+                            continue
 
-                for tc in response.tool_calls:
-                    result_content, stop = self._execute_tool(tc.name, tc.input)
-                    messages.append(self.router.make_tool_result_message(tc.id, result_content))
-                    if stop:
-                        should_stop = True
+                        if self.crime_process_deduced and not motive_done:
+                            messages.append({
+                                "role": "user",
+                                "content": (
+                                    "不要结束调查。作案过程已确认，但动机线索还没齐。"
+                                    "请继续调用 ask_npc，优先询问 Morgan 和 Daniel 的经济或合同矛盾。"
+                                ),
+                            })
+                            continue
 
-                    for event in self._tool_events(tc.name, tc.input, turn + 1):
-                        yield event
+                        if (self.crime_process_deduced
+                                and self.script_mgr.has_solved_all_conditions()
+                                and not self._accusation_accepted):
+                            messages.append({"role": "user", "content": "作案过程已确认，所有线索已收集，请立即调用 make_accusation 提交最终指控。"})
+                            continue
+                        break
 
-                # Per-turn conditions summary appended as a user message
-                conditions = self.script_mgr.get_required_conditions()
-                if conditions:
-                    self.max_turns += 5  # extend max turns if any conditions found to allow for follow-up questioning
-                evidence_done = all(c in conditions for c in EVIDENCE_CONDITIONS)
-                motive_done   = all(c in conditions for c in MOTIVE_CONDITIONS)
-                summary = (
-                    f"物证线索 ({sum(c in conditions for c in EVIDENCE_CONDITIONS)}/{len(EVIDENCE_CONDITIONS)}): "
-                    f"{', '.join(c for c in EVIDENCE_CONDITIONS if c in conditions) or '暂无'}\n"
-                    f"动机线索 ({sum(c in conditions for c in MOTIVE_CONDITIONS)}/{len(MOTIVE_CONDITIONS)}): "
-                    f"{', '.join(c for c in MOTIVE_CONDITIONS if c in conditions) or '暂无'}"
-                )
-                new_conditions = set(conditions) - prev_conditions
-                for c in new_conditions:
-                    hint = condition_hint(c)
-                    if hint:
-                        summary += f"\n\n🔍 新线索「{c}」：{hint}"
+                    if response.finish_reason != "tool_calls":
+                        break
 
-                if motive_done and not evidence_done:
-                    summary += "\n\n💡 动机已查明，建议专注物证：询问嫌疑人关于现场证物的观察。"
-                if evidence_done and not self.crime_process_deduced:
-                    summary += "\n\n💡 物证线索已齐全，请调用 deduce_crime_process 提交作案过程推断。"
-                if self.crime_process_deduced and not motive_done:
-                    summary += "\n\n💡 作案过程已查明，建议转向动机：询问嫌疑人 Morgan 与死者的矛盾。"
-                messages.append({"role": "user", "content": summary})
+                    should_stop = False
+                    prev_conditions = set(self.script_mgr.get_required_conditions())
 
-                if should_stop:
-                    break
+                    for tc in response.tool_calls:
+                        result_content, stop = self._execute_tool(tc.name, tc.input)
+                        messages.append(self.router.make_tool_result_message(tc.id, result_content))
+                        if stop:
+                            should_stop = True
+
+                        for event in self._tool_events(tc.name, tc.input, turn):
+                            yield event
+
+                    # Per-turn conditions summary appended as a user message
+                    conditions = self.script_mgr.get_required_conditions()
+                    evidence_done = all(c in conditions for c in EVIDENCE_CONDITIONS)
+                    motive_done   = all(c in conditions for c in MOTIVE_CONDITIONS)
+                    summary = (
+                        f"物证线索 ({sum(c in conditions for c in EVIDENCE_CONDITIONS)}/{len(EVIDENCE_CONDITIONS)}): "
+                        f"{', '.join(c for c in EVIDENCE_CONDITIONS if c in conditions) or '暂无'}\n"
+                        f"动机线索 ({sum(c in conditions for c in MOTIVE_CONDITIONS)}/{len(MOTIVE_CONDITIONS)}): "
+                        f"{', '.join(c for c in MOTIVE_CONDITIONS if c in conditions) or '暂无'}"
+                    )
+                    new_conditions = set(conditions) - prev_conditions
+                    if new_conditions:
+                        self.max_turns += 5  # extend only when fresh clues are found
+                    for c in new_conditions:
+                        hint = condition_hint(c)
+                        if hint:
+                            summary += f"\n\n🔍 新线索「{c}」：{hint}"
+
+                    if motive_done and not evidence_done:
+                        summary += "\n\n💡 动机已查明，建议专注物证：询问嫌疑人关于现场证物的观察。"
+                    if evidence_done and not self.crime_process_deduced:
+                        summary += "\n\n💡 物证线索已齐全，请调用 deduce_crime_process 提交作案过程推断。"
+                    if self.crime_process_deduced and not motive_done:
+                        summary += "\n\n💡 作案过程已查明，建议转向动机：询问嫌疑人 Morgan 与死者的矛盾。"
+                    messages.append({"role": "user", "content": summary})
+
+                    if should_stop:
+                        break
+        except Exception as exc:
+            yield {"type": "error", "message": f"AI侦探调查中断：{type(exc).__name__}: {exc}"}
 
         yield {"type": "done"}
 
@@ -402,14 +444,8 @@ class DetectiveAgent:
     # ── Prompt building ─────────────────────────────────────────────────────
 
     def _build_initial_prompt(self):
-        evidence      = self.script_mgr.get_evidence()
-        evidence_text = "\n".join(f"  【{k}】{v}" for k, v in evidence.items())
 
         return f"""法医报告摘要：
-- 死者右手食指与中指指腹检出氰化钾残留，提示毒素来自接触某个物体表面而非直接涂抹
-
-现场证物：
-{evidence_text}
-
-请开始调查。建议如下：1.询问被害者和嫌疑人们当天的时间线。2.询问每位嫌疑人对现场证物的观察，再结合法医报告寻找矛盾点。3.询问嫌疑人们和被害者的关系以及嫌疑人之间的关系。
+- 死者死因为氰化钾中毒而死。死者右手食指与中指指腹检出氰化钾残留，现场证物提示毒素来自接触某个物体表面而非直接涂抹
+请开始调查。建议如下：1.调查现场证物获得相关线索。2.询问被害者和嫌疑人们当天的时间线。3.询问每位嫌疑人对现场证物的观察，再结合法医报告寻找矛盾点。4.询问嫌疑人们和被害者的关系以及嫌疑人之间的关系。
 调查分两阶段：①收集全部线索 → ②提交 deduce_crime_process，再提交 make_accusation。"""

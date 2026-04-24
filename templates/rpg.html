@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>侦探游戏 RPG 原型</title>
+<style>
+  :root {
+    --bg: #11131a;
+    --floor-a: #2a2420;
+    --floor-b: #322b25;
+    --wall: #17191f;
+    --wall-edge: #59606d;
+    --counter: #5a4432;
+    --table: #72543a;
+    --lamp: #f0bd58;
+    --ink: #f8efd2;
+    --muted: #b8a989;
+    --panel: #201b18;
+    --panel-2: #302620;
+    --line: #8a704b;
+    --accent: #e0b24f;
+    --danger: #b5463f;
+    --ok: #74b46f;
+    --tile: min(4.9vw, 44px);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--ink);
+    background:
+      linear-gradient(180deg, rgba(20, 22, 30, 0.94), rgba(9, 10, 13, 0.98)),
+      repeating-linear-gradient(0deg, transparent 0 3px, rgba(255,255,255,0.02) 3px 4px);
+    font-family: "Courier New", "Microsoft YaHei", monospace;
+    overflow-x: hidden;
+  }
+
+  button, textarea, select {
+    font: inherit;
+  }
+
+  button {
+    color: var(--ink);
+    background: var(--panel-2);
+    border: 3px solid var(--line);
+    box-shadow: 0 4px 0 #0b0a09;
+    cursor: pointer;
+  }
+
+  button:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: #fff6cf;
+  }
+
+  button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .screen {
+    width: min(1180px, 100%);
+    margin: 0 auto;
+    padding: 18px;
+  }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .title h1 {
+    margin: 0;
+    font-size: clamp(18px, 3vw, 28px);
+    letter-spacing: 2px;
+    text-shadow: 3px 3px 0 #000;
+  }
+
+  .title p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .hud {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .hud button {
+    padding: 8px 10px;
+    min-height: 38px;
+  }
+
+  .game-shell {
+    display: grid;
+    grid-template-columns: 1fr 290px;
+    gap: 14px;
+    align-items: start;
+  }
+
+  .stage-frame,
+  .side-panel,
+  .dialogue-bar,
+  .modal-card {
+    background: var(--panel);
+    border: 4px solid var(--line);
+    box-shadow: 0 0 0 4px #090806, 0 10px 0 #070605;
+  }
+
+  .stage-frame {
+    padding: 12px;
+  }
+
+  .map {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(18, var(--tile));
+    grid-template-rows: repeat(12, var(--tile));
+    width: calc(var(--tile) * 18);
+    height: calc(var(--tile) * 12);
+    max-width: 100%;
+    margin: 0 auto;
+    image-rendering: pixelated;
+    outline: 3px solid #090806;
+    background: #1b1614;
+    overflow: hidden;
+  }
+
+  .tile {
+    width: var(--tile);
+    height: var(--tile);
+    background:
+      linear-gradient(135deg, rgba(255,255,255,0.03) 0 25%, transparent 25% 100%),
+      var(--floor-a);
+    border: 1px solid rgba(0,0,0,0.22);
+  }
+
+  .tile:nth-child(odd) { background-color: var(--floor-b); }
+  .tile.wall {
+    background:
+      linear-gradient(180deg, var(--wall-edge) 0 10%, transparent 10% 100%),
+      repeating-linear-gradient(90deg, var(--wall) 0 18px, #20242d 18px 20px);
+  }
+
+  .zone, .decor {
+    position: absolute;
+    left: var(--left);
+    top: var(--top);
+    width: var(--zone-width);
+    height: var(--zone-height);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .kitchen-zone {
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 2px, transparent 2px 18px),
+      rgba(38, 46, 49, 0.42);
+    border-top: 4px solid #11171a;
+    border-right: 4px solid #11171a;
+    box-shadow: inset 0 0 0 3px rgba(85, 98, 102, 0.45);
+  }
+
+  .worktop-h,
+  .worktop-v {
+    background: var(--counter);
+    border: 4px solid #332315;
+    box-shadow: inset 0 0 0 4px #7b5a3d, 0 5px 0 rgba(0,0,0,0.25);
+  }
+
+  .worktop-v {
+    border-left-color: #21160d;
+  }
+
+  .zone-label {
+    position: absolute;
+    left: 50%;
+    top: 12px;
+    transform: translateX(-50%);
+    color: var(--muted);
+    font-size: 15px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .prop, .actor, .player {
+    position: absolute;
+    left: var(--left);
+    top: var(--top);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    width: var(--tile);
+    height: var(--tile);
+    transition: left 0.08s steps(2), top 0.08s steps(2);
+    pointer-events: none;
+  }
+
+  .prop::before,
+  .actor::before,
+  .player::before {
+    content: "";
+    display: block;
+    image-rendering: pixelated;
+  }
+
+  .table::before {
+    width: 76%;
+    height: 62%;
+    background: var(--table);
+    border: 4px solid #3d2c1e;
+    box-shadow: inset 0 0 0 4px #8b6643, 0 6px 0 rgba(0,0,0,0.28);
+  }
+
+  .counter::before {
+    width: 92%;
+    height: 72%;
+    background: var(--counter);
+    border: 4px solid #332315;
+    box-shadow: inset 0 0 0 4px #7b5a3d;
+  }
+
+  .door::before {
+    width: 86%;
+    height: 68%;
+    background: #1a0f0b;
+    border: 4px solid var(--accent);
+    box-shadow: inset 0 0 0 5px #3c291d;
+  }
+
+  .exit-door::before {
+    width: 100%;
+    height: 54%;
+    background: #17110c;
+    border: 4px solid var(--accent);
+    box-shadow: inset 0 0 0 5px #3c291d;
+  }
+
+  .terminal::before {
+    width: 74%;
+    height: 62%;
+    background: #21384a;
+    border: 4px solid #0a1117;
+    box-shadow: inset 0 0 0 5px #61b6bd, 0 6px 0 rgba(0,0,0,0.3);
+  }
+
+  .notes::before {
+    width: 74%;
+    height: 60%;
+    background: #d9c27f;
+    border: 4px solid #4b3622;
+    box-shadow: inset 0 -9px 0 #a98d55;
+  }
+
+  .victim::before {
+    width: 84%;
+    height: 58%;
+    background:
+      linear-gradient(35deg, transparent 0 22%, #6f5f4a 22% 38%, transparent 38% 100%),
+      linear-gradient(145deg, transparent 0 24%, #8b2f34 24% 43%, transparent 43% 100%);
+    border: 3px solid #0a0908;
+    transform: rotate(-28deg);
+    box-shadow: 0 5px 0 rgba(0,0,0,0.35);
+  }
+
+  .actor::before,
+  .player::before {
+    width: 82%;
+    height: 92%;
+    background: var(--sprite) center bottom / contain no-repeat;
+    filter: drop-shadow(0 5px 0 rgba(0,0,0,0.35));
+  }
+
+  .player::before {
+    --sprite: url('/static/assets/npcs/detective.png');
+    animation: idle 1.2s steps(2) infinite;
+  }
+
+  .actor.jordan::before { --sprite: url('/static/assets/npcs/jordan.png'); }
+  .actor.lucas::before { --sprite: url('/static/assets/npcs/lucas.png'); }
+  .actor.morgan::before { --sprite: url('/static/assets/npcs/morgan.png'); }
+
+  @keyframes idle {
+    50% { transform: translateY(-2px); }
+  }
+
+  .focus-ring::after {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border: 3px solid var(--ok);
+    animation: blink 0.8s steps(2) infinite;
+    pointer-events: none;
+  }
+
+  @keyframes blink {
+    50% { opacity: 0.25; }
+  }
+
+  .label {
+    position: absolute;
+    left: 50%;
+    bottom: -14px;
+    transform: translateX(-50%);
+    padding: 2px 5px;
+    color: #101010;
+    background: var(--accent);
+    border: 2px solid #0b0907;
+    font-size: 10px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .dialogue-bar {
+    margin-top: 14px;
+    padding: 14px;
+    min-height: 82px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .dialogue-name {
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .dialogue-text {
+    color: var(--ink);
+    line-height: 1.55;
+  }
+
+  .interact-btn {
+    padding: 10px 16px;
+    min-width: 110px;
+  }
+
+  .side-panel {
+    padding: 14px;
+    min-height: 350px;
+  }
+
+  .side-panel h2 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    color: var(--accent);
+  }
+
+  .mini-progress {
+    height: 12px;
+    background: #111;
+    border: 2px solid var(--line);
+    margin: 8px 0 10px;
+  }
+
+  .mini-progress span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, var(--accent), var(--danger));
+  }
+
+  .condition-list {
+    display: grid;
+    gap: 7px;
+    margin-top: 10px;
+  }
+
+  .condition-item {
+    color: var(--muted);
+    border-left: 4px solid #4c4436;
+    padding: 5px 7px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .condition-item.unlocked {
+    color: var(--ink);
+    border-left-color: var(--accent);
+    background: rgba(224,178,79,0.08);
+  }
+
+  .inventory {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 14px;
+  }
+
+  .chip {
+    border: 2px solid var(--line);
+    padding: 4px 6px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.04);
+    font-size: 12px;
+  }
+
+  .mobile-controls {
+    display: none;
+    grid-template-columns: repeat(3, 48px);
+    grid-template-rows: repeat(2, 44px);
+    gap: 6px;
+    justify-content: center;
+    margin-top: 14px;
+  }
+
+  .mobile-controls button {
+    padding: 0;
+  }
+
+  .mobile-controls .up { grid-column: 2; }
+  .mobile-controls .left { grid-column: 1; grid-row: 2; }
+  .mobile-controls .down { grid-column: 2; grid-row: 2; }
+  .mobile-controls .right { grid-column: 3; grid-row: 2; }
+
+  .modal-layer {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: rgba(0,0,0,0.76);
+    z-index: 20;
+  }
+
+  .modal-layer.show {
+    display: flex;
+  }
+
+  .modal-card {
+    width: min(760px, 100%);
+    max-height: min(86vh, 860px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 3px solid var(--line);
+    background: var(--panel-2);
+  }
+
+  .modal-head h2 {
+    margin: 0;
+    color: var(--accent);
+    font-size: 18px;
+  }
+
+  .modal-close {
+    width: 40px;
+    height: 34px;
+    padding: 0;
+  }
+
+  .modal-body {
+    padding: 14px;
+    overflow: auto;
+  }
+
+  .chat-log, .ai-log {
+    height: min(44vh, 360px);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+    background: #120f0d;
+    border: 3px solid #0b0907;
+  }
+
+  .msg {
+    max-width: 86%;
+    padding: 9px 10px;
+    border: 3px solid var(--line);
+    background: #2d241e;
+    line-height: 1.6;
+    font-size: 14px;
+  }
+
+  .msg.player {
+    align-self: flex-end;
+    background: #253248;
+    border-color: #5b7295;
+  }
+
+  .msg .sender {
+    color: var(--accent);
+    font-size: 12px;
+    margin-bottom: 3px;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  textarea, select {
+    color: var(--ink);
+    background: #120f0d;
+    border: 3px solid var(--line);
+    outline: none;
+  }
+
+  textarea {
+    flex: 1;
+    min-height: 44px;
+    max-height: 120px;
+    padding: 9px;
+    resize: vertical;
+  }
+
+  select {
+    width: 100%;
+    padding: 9px;
+    margin: 4px 0 12px;
+  }
+
+  .panel-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  .panel-actions button {
+    padding: 9px 12px;
+  }
+
+  .result-box {
+    margin-top: 10px;
+    padding: 12px;
+    line-height: 1.7;
+    background: #120f0d;
+    border: 3px solid #0b0907;
+  }
+
+  .toast {
+    position: fixed;
+    right: 18px;
+    top: 18px;
+    z-index: 40;
+    max-width: min(360px, calc(100vw - 36px));
+    padding: 12px 14px;
+    color: var(--ink);
+    background: var(--panel-2);
+    border: 3px solid var(--accent);
+    box-shadow: 0 6px 0 #070605;
+    animation: toast-in 0.18s steps(2);
+  }
+
+  @keyframes toast-in {
+    from { transform: translateY(-8px); opacity: 0; }
+  }
+
+  @media (max-width: 900px) {
+    :root { --tile: min(5.2vw, 40px); }
+    .game-shell { grid-template-columns: 1fr; }
+    .side-panel { min-height: 0; }
+    .mobile-controls { display: grid; }
+  }
+
+  @media (max-width: 560px) {
+    :root { --tile: calc((100vw - 60px) / 18); }
+    .screen { padding: 12px; }
+    .topbar { align-items: flex-start; flex-direction: column; }
+    .hud { justify-content: flex-start; }
+    .dialogue-bar { grid-template-columns: 1fr; }
+    .interact-btn { width: 100%; }
+    .input-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="screen">
+  <header class="topbar">
+    <div class="title">
+      <h1>氰化钾餐馆事件</h1>
+      <p>RPG 原型页，现有首页保持不变。方向键/WASD 移动，Enter/空格交互。</p>
+    </div>
+    <div class="hud">
+      <button type="button" onclick="openCasePanel()">案情</button>
+      <button type="button" onclick="openNotesPanel()">笔记</button>
+      <button type="button" onclick="openAiPanel()">AI 侦探</button>
+      <button type="button" onclick="openDeductionPanel()">推理</button>
+    </div>
+  </header>
+
+  <main class="game-shell">
+    <section>
+      <div class="stage-frame">
+        <div class="map" id="map" aria-label="餐馆像素地图"></div>
+      </div>
+
+      <div class="dialogue-bar">
+        <div>
+          <div class="dialogue-name" id="promptName">案发餐馆</div>
+          <div class="dialogue-text" id="promptText">移动小侦探，靠近嫌疑人、证物或功能点。</div>
+        </div>
+        <button class="interact-btn" id="interactBtn" type="button" onclick="interact()" disabled>交互</button>
+      </div>
+
+      <div class="mobile-controls" aria-label="移动控制">
+        <button class="up" type="button" onclick="movePlayer(0,-1)">上</button>
+        <button class="left" type="button" onclick="movePlayer(-1,0)">左</button>
+        <button class="down" type="button" onclick="movePlayer(0,1)">下</button>
+        <button class="right" type="button" onclick="movePlayer(1,0)">右</button>
+      </div>
+    </section>
+
+    <aside class="side-panel">
+      <h2>调查状态</h2>
+      <div id="progressCount">已发现 0 / 6 条线索</div>
+      <div class="mini-progress"><span id="progressFill"></span></div>
+      <div class="condition-list" id="conditionList"></div>
+      <div class="inventory" id="inventory"></div>
+    </aside>
+  </main>
+</div>
+
+<div class="modal-layer" id="modalLayer">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="modalTitle">窗口</h2>
+      <button class="modal-close" type="button" onclick="closePanel()">X</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+let totalConditions = 6;
+const MAP_W = 18;
+const MAP_H = 12;
+const zones = [
+  { id: 'kitchen-zone', name: 'Kitchen', x: 10, y: 1, w: 7, h: 3, cls: 'kitchen-zone' },
+];
+const decors = [
+  { id: 'worktop-h', x: 10, y: 3, w: 7, h: 1, cls: 'worktop-h' },
+  { id: 'worktop-v', x: 10, y: 1, w: 1, h: 3, cls: 'worktop-v' },
+];
+const suspects = [
+  { name: 'Lucas', role: '餐馆老板', desc: '案发餐馆老板，脾气急。', x: 16, y: 4, cls: 'lucas' },
+  { name: 'Jordan', role: '商务顾问', desc: 'Daniel 的合作方，熟悉合同。', x: 16, y: 5, cls: 'jordan' },
+  { name: 'Morgan', role: '理发师', desc: '当天早上接触过 Daniel。', x: 16, y: 6, cls: 'morgan' },
+];
+const props = [
+  { id: 'exit', name: 'Exit', type: 'deduce', x: 4, y: 1, cls: 'exit-door', prompt: '出口，提交最终推理。' },
+  { id: 'table-left', name: '餐桌', type: 'case', x: 5, y: 5, cls: 'table', prompt: '查看案情摘要。' },
+  { id: 'table-mid', name: '餐桌', type: 'case', x: 8, y: 5, cls: 'table', prompt: '查看案情摘要。' },
+  { id: 'case', name: '案发餐桌', type: 'case', x: 12, y: 5, cls: 'table', prompt: '查看 Daniel 倒下的案发餐桌。' },
+  { id: 'victim', name: 'Victim', type: 'case', x: 11, y: 5, cls: 'victim', prompt: 'Daniel 倒在这里，查看案情摘要。' },
+  { id: 'table-lower-left', name: '餐桌', type: 'case', x: 7, y: 8, cls: 'table', prompt: '查看案情摘要。' },
+  { id: 'table-lower-mid', name: '餐桌', type: 'case', x: 11, y: 7, cls: 'table', prompt: '查看案情摘要。' },
+  { id: 'evidence-desk', name: '证物台', type: 'evidence-desk', x: 11, y: 10, cls: 'notes', prompt: '查看证物检验报告。' },
+  { id: 'ai', name: 'AI 终端', type: 'ai', x: 15, y: 8, cls: 'terminal', prompt: '观看 AI 侦探自动调查。' },
+  { id: 'entrance', name: 'Entrance', type: 'case', x: 16, y: 11, cls: 'door', prompt: '餐馆入口，查看案情摘要。' },
+];
+const targets = [
+  ...suspects.map((s, index) => ({ ...s, id: `npc-${s.name}`, type: 'npc', index, prompt: `审讯 ${s.name}。` })),
+  ...props,
+];
+
+const chatHistories = suspects.map(() => []);
+const collectedEvidence = new Set();
+let evidenceKeys = [];
+let caseDescription = '加载中...';
+let knownConditions = [];
+let player = { x: 15, y: 9 };
+let nearbyTarget = null;
+let currentNpcIndex = -1;
+let aiRunning = false;
+
+function init() {
+  buildMap();
+  fetch('/api/game-data')
+    .then(res => res.json())
+    .then(data => {
+      caseDescription = data.case_description || '';
+      evidenceKeys = data.evidence_keys || [];
+      totalConditions = data.required_total || totalConditions;
+      updateConditionsUI([]);
+    })
+    .catch(err => showToast(`初始化失败：${err.message}`));
+  updatePlayer();
+  updateNearby();
+}
+
+function buildMap() {
+  const map = document.getElementById('map');
+  map.innerHTML = '';
+  for (let y = 1; y <= MAP_H; y += 1) {
+    for (let x = 1; x <= MAP_W; x += 1) {
+      const tile = document.createElement('div');
+      tile.className = 'tile' + (isWall(x, y) ? ' wall' : '');
+      map.appendChild(tile);
+    }
+  }
+  zones.forEach(zone => {
+    const el = document.createElement('div');
+    el.id = zone.id;
+    el.className = `zone ${zone.cls}`;
+    placeZone(el, zone.x, zone.y, zone.w, zone.h);
+    const label = document.createElement('div');
+    label.className = 'zone-label';
+    label.textContent = zone.name;
+    el.appendChild(label);
+    map.appendChild(el);
+  });
+  decors.forEach(decor => {
+    const el = document.createElement('div');
+    el.id = decor.id;
+    el.className = `decor ${decor.cls}`;
+    placeZone(el, decor.x, decor.y, decor.w, decor.h);
+    map.appendChild(el);
+  });
+  targets.forEach(target => {
+    const el = document.createElement('div');
+    el.id = `target-${target.id}`;
+    el.className = target.type === 'npc' ? `actor ${target.cls}` : `prop ${target.cls}`;
+    placeMapObject(el, target.x, target.y);
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = target.name;
+    el.appendChild(label);
+    map.appendChild(el);
+  });
+  const playerEl = document.createElement('div');
+  playerEl.id = 'player';
+  playerEl.className = 'player';
+  const playerLabel = document.createElement('div');
+  playerLabel.className = 'label';
+  playerLabel.textContent = 'Detective';
+  playerEl.appendChild(playerLabel);
+  map.appendChild(playerEl);
+}
+
+function isWall(x, y) {
+  return x === 1 || x === MAP_W || y === 1 || y === MAP_H;
+}
+
+function isBlocked(x, y) {
+  if (isWall(x, y)) return true;
+  if (isDecorBlocked(x, y)) return true;
+  return targets.some(t => t.x === x && t.y === y && t.type !== 'deduce');
+}
+
+function isDecorBlocked(x, y) {
+  return decors.some(decor =>
+    decor.cls.startsWith('worktop')
+    && x >= decor.x
+    && x < decor.x + decor.w
+    && y >= decor.y
+    && y < decor.y + decor.h
+  );
+}
+
+function updatePlayer() {
+  const el = document.getElementById('player');
+  placeMapObject(el, player.x, player.y);
+}
+
+function placeMapObject(el, x, y) {
+  el.style.setProperty('--left', `${((x - 1) / MAP_W) * 100}%`);
+  el.style.setProperty('--top', `${((y - 1) / MAP_H) * 100}%`);
+}
+
+function placeZone(el, x, y, w, h) {
+  el.style.setProperty('--left', `${((x - 1) / MAP_W) * 100}%`);
+  el.style.setProperty('--top', `${((y - 1) / MAP_H) * 100}%`);
+  el.style.setProperty('--zone-width', `${(w / MAP_W) * 100}%`);
+  el.style.setProperty('--zone-height', `${(h / MAP_H) * 100}%`);
+}
+
+function movePlayer(dx, dy) {
+  if (isTyping()) return;
+  const nx = player.x + dx;
+  const ny = player.y + dy;
+  if (!isBlocked(nx, ny)) {
+    player = { x: nx, y: ny };
+    updatePlayer();
+    updateNearby();
+  }
+}
+
+function updateNearby() {
+  document.querySelectorAll('.focus-ring').forEach(el => el.classList.remove('focus-ring'));
+  nearbyTarget = targets.find(t => Math.abs(t.x - player.x) + Math.abs(t.y - player.y) <= 1) || null;
+  const btn = document.getElementById('interactBtn');
+  if (!nearbyTarget) {
+    document.getElementById('promptName').textContent = '案发餐馆';
+    document.getElementById('promptText').textContent = '移动小侦探，靠近嫌疑人、证物或功能点。';
+    btn.disabled = true;
+    return;
+  }
+  document.getElementById(`target-${nearbyTarget.id}`)?.classList.add('focus-ring');
+  document.getElementById('promptName').textContent = nearbyTarget.name;
+  document.getElementById('promptText').textContent = nearbyTarget.prompt;
+  btn.disabled = false;
+}
+
+function interact() {
+  if (!nearbyTarget) return;
+  if (nearbyTarget.type === 'npc') openInterrogation(nearbyTarget.index);
+  if (nearbyTarget.type === 'evidence') openEvidencePanel(nearbyTarget.name);
+  if (nearbyTarget.type === 'evidence-desk') openEvidenceDeskPanel();
+  if (nearbyTarget.type === 'case') openCasePanel();
+  if (nearbyTarget.type === 'notes') openNotesPanel();
+  if (nearbyTarget.type === 'ai') openAiPanel();
+  if (nearbyTarget.type === 'deduce') openDeductionPanel();
+}
+
+function openPanel(title, html) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modalLayer').classList.add('show');
+}
+
+function closePanel() {
+  document.getElementById('modalLayer').classList.remove('show');
+}
+
+function openCasePanel() {
+  openPanel('案情摘要', `
+    <div class="result-box">${escHtml(caseDescription)}</div>
+  `);
+}
+
+function openEvidenceDeskPanel() {
+  const evidenceButtons = evidenceKeys.map(k => `<button type="button" onclick="openEvidencePanel('${escAttr(k)}')">${escHtml(k)}</button>`).join('');
+  openPanel('证物台', `
+    <p style="color:var(--muted);margin-top:0;">选择证物查看检验报告。</p>
+    <div class="panel-actions">${evidenceButtons || '<span class="chip">证物列表加载中</span>'}</div>
+    <div class="result-box" id="evidenceResult">请选择一个证物。</div>
+  `);
+}
+
+function openInterrogation(index) {
+  currentNpcIndex = index;
+  const s = suspects[index];
+  openPanel(`审讯 ${s.name}`, `
+    <p style="color:var(--muted);margin-top:0;">${escHtml(s.role)}：${escHtml(s.desc)}</p>
+    <div class="chat-log" id="chatLog"></div>
+    <div class="input-row">
+      <textarea id="playerInput" placeholder="输入问题..." onkeydown="handleQuestionKey(event)"></textarea>
+      <button type="button" id="sendBtn" onclick="sendMessage()">发问</button>
+    </div>
+  `);
+  renderChat();
+  setTimeout(() => document.getElementById('playerInput')?.focus(), 0);
+}
+
+function renderChat() {
+  const log = document.getElementById('chatLog');
+  if (!log || currentNpcIndex < 0) return;
+  const s = suspects[currentNpcIndex];
+  const history = chatHistories[currentNpcIndex];
+  log.innerHTML = history.length
+    ? history.map(m => `
+      <div class="msg ${m.role === 'user' ? 'player' : ''}">
+        <div class="sender">${m.role === 'user' ? '侦探' : escHtml(s.name)}</div>
+        ${escHtml(m.content)}
+      </div>
+    `).join('')
+    : `<div class="msg"><div class="sender">${escHtml(s.name)}</div>${escHtml(s.name)} 等着你的问题。</div>`;
+  log.scrollTop = log.scrollHeight;
+}
+
+async function sendMessage() {
+  if (currentNpcIndex < 0) return;
+  const input = document.getElementById('playerInput');
+  const btn = document.getElementById('sendBtn');
+  const text = input.value.trim();
+  if (!text) return;
+  const npcIndex = currentNpcIndex;
+  const npcName = suspects[npcIndex].name;
+  input.value = '';
+  btn.disabled = true;
+  chatHistories[npcIndex].push({ role: 'user', content: text });
+  chatHistories[npcIndex].push({ role: 'assistant', content: '...' });
+  renderChat();
+  try {
+    const res = await fetch('/api/ask-npc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ npc_name: npcName, question: text })
+    });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let reply = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let payload;
+        try { payload = JSON.parse(line.slice(6)); } catch { continue; }
+        if (payload.chunk !== undefined) {
+          reply += payload.chunk;
+          chatHistories[npcIndex][chatHistories[npcIndex].length - 1].content = reply;
+          if (npcIndex === currentNpcIndex) renderChat();
+        }
+        if (payload.done) {
+          if (payload.conditions) {
+            const old = knownConditions.length;
+            knownConditions = payload.conditions;
+            updateConditionsUI(knownConditions);
+            payload.conditions.slice(old).forEach(c => showToast(`发现新线索：${c}`));
+          }
+        }
+      }
+    }
+  } catch (err) {
+    chatHistories[npcIndex][chatHistories[npcIndex].length - 1].content = `[错误: ${err.message}]`;
+    renderChat();
+  }
+  btn.disabled = false;
+  input.focus();
+}
+
+function openEvidencePanel(name) {
+  collectedEvidence.add(name);
+  updateInventory();
+  if (!document.getElementById('evidenceResult')) {
+    openEvidenceDeskPanel();
+  }
+  document.getElementById('modalTitle').textContent = '证物台';
+  const currentBox = document.getElementById('evidenceResult');
+  if (currentBox) currentBox.textContent = '正在查看检验报告...';
+  fetch('/api/search-evidence', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ item: name })
+  })
+    .then(res => res.json())
+    .then(data => {
+      const box = document.getElementById('evidenceResult');
+      if (box) box.innerHTML = `<strong>${escHtml(data.matched_key || name)}</strong><br>${escHtml(data.result)}`;
+    })
+    .catch(err => {
+      const box = document.getElementById('evidenceResult');
+      if (box) box.textContent = `[错误: ${err.message}]`;
+    });
+}
+
+function openNotesPanel() {
+  openPanel('侦探笔记', `
+    <textarea id="notesArea" style="width:100%;height:240px;" placeholder="记录线索、矛盾点和推理...">${escTextarea(localStorage.getItem('detective-rpg-notes') || '')}</textarea>
+    <div class="panel-actions">
+      <button type="button" onclick="saveNotes()">保存笔记</button>
+      <button type="button" onclick="renderProgressInModal()">查看线索</button>
+    </div>
+    <div id="modalProgress"></div>
+  `);
+}
+
+function saveNotes() {
+  localStorage.setItem('detective-rpg-notes', document.getElementById('notesArea').value);
+  showToast('笔记已保存');
+}
+
+function renderProgressInModal() {
+  const box = document.getElementById('modalProgress');
+  if (!box) return;
+  box.innerHTML = `<div class="result-box">${renderConditionItems(knownConditions)}</div>`;
+}
+
+function openAiPanel() {
+  openPanel('AI 侦探观战', `
+    <div class="ai-log" id="aiLog"><div class="msg"><div class="sender">系统</div>等待 AI 侦探开始调查。</div></div>
+    <div class="panel-actions">
+      <button type="button" id="aiStartBtn" onclick="startAiInvestigation()">开始调查</button>
+      <span id="aiStatus" style="color:var(--muted);align-self:center;">等待开始</span>
+    </div>
+  `);
+}
+
+function startAiInvestigation() {
+  if (aiRunning) return;
+  aiRunning = true;
+  const log = document.getElementById('aiLog');
+  const btn = document.getElementById('aiStartBtn');
+  const status = document.getElementById('aiStatus');
+  const prevConditions = [];
+  log.innerHTML = '';
+  btn.disabled = true;
+  status.textContent = '调查中...';
+
+  fetch('/api/auto-investigate')
+    .then(res => {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      function read() {
+        reader.read().then(({ done, value }) => {
+          if (done) { finishAi(); return; }
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            let ev;
+            try { ev = JSON.parse(line.slice(6)); } catch { continue; }
+            handleAiEvent(ev, prevConditions);
+          }
+          read();
+    }).catch(err => {
+      appendAiLog('系统', `[错误: ${escHtml(err.message)}]`);
+      finishAi();
+    });
+      }
+      read();
+    })
+    .catch(err => {
+      appendAiLog('系统', `[错误: ${escHtml(err.message)}]`);
+      finishAi();
+    });
+}
+
+function handleAiEvent(ev, prevConditions) {
+  const status = document.getElementById('aiStatus');
+  if (ev.type === 'thinking') status.textContent = `第${ev.turn}轮思考中...`;
+  if (ev.type === 'error') {
+    appendAiLog('错误', escHtml(ev.message || 'AI 调查中断'));
+    status.textContent = '调查中断';
+  }
+  if (ev.type === 'thought') appendAiLog('侦探思考', `${escHtml(ev.reasoning)}<br>准备问 ${escHtml(ev.target)}：${escHtml(ev.question)}`);
+  if (ev.type === 'question') appendAiLog(`侦探 -> ${ev.npc}`, escHtml(ev.text));
+  if (ev.type === 'answer') appendAiLog(ev.npc, escHtml(ev.text));
+  if (ev.type === 'deduction') appendAiLog('作案过程推断', escHtml(ev.process || ''));
+  if (ev.type === 'observe' && ev.conditions) {
+    const prev = new Set(prevConditions);
+    const fresh = ev.conditions.filter(c => !prev.has(c));
+    fresh.forEach(c => {
+      appendAiLog('新线索', escHtml(c));
+      showToast(`AI 侦探发现：${c}`);
+    });
+    if (fresh.length) {
+      prevConditions.splice(0, prevConditions.length, ...ev.conditions);
+      knownConditions = ev.conditions;
+      updateConditionsUI(knownConditions);
+    }
+  }
+  if (ev.type === 'accusation') {
+    appendAiLog(
+      '最终指控',
+      `凶手：${escHtml(ev.culprit)}<br>位置：${escHtml(ev.location || '-')}<br>动机：${escHtml(ev.motive)}<br>${escHtml(ev.reasoning || '')}`
+    );
+  }
+  if (ev.type === 'done') finishAi();
+}
+
+function appendAiLog(sender, html) {
+  const log = document.getElementById('aiLog');
+  if (!log) return;
+  const el = document.createElement('div');
+  el.className = 'msg';
+  el.innerHTML = `<div class="sender">${escHtml(sender)}</div>${html}`;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+}
+
+function finishAi() {
+  aiRunning = false;
+  const btn = document.getElementById('aiStartBtn');
+  const status = document.getElementById('aiStatus');
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = '重新调查';
+  }
+  if (status) status.textContent = '调查完毕';
+}
+
+function openDeductionPanel() {
+  openPanel('最终推理', `
+    <label>凶手</label>
+    <select id="deduceCulprit">
+      <option value="">请选择</option>
+      <option value="Jordan">Jordan</option>
+      <option value="Lucas">Lucas</option>
+      <option value="Morgan">Morgan</option>
+    </select>
+    <label>施毒位置</label>
+    <select id="deduceLocation">
+      <option value="">请选择</option>
+      <option value="food">炸鸡</option>
+      <option value="water">水杯</option>
+      <option value="glasses">眼镜</option>
+      <option value="cutlery">餐具</option>
+    </select>
+    <label>动机</label>
+    <select id="deduceMotive">
+      <option value="">请选择</option>
+      <option value="Romantic jealousy">感情纠纷</option>
+      <option value="Business revenge">商业报复</option>
+      <option value="Economic dispute over contract">合同经济纠纷</option>
+    </select>
+    <div class="panel-actions">
+      <button type="button" onclick="submitDeduction()">提交推理</button>
+    </div>
+    <div id="deductionResult"></div>
+  `);
+}
+
+function submitDeduction() {
+  const culprit = document.getElementById('deduceCulprit').value;
+  const location = document.getElementById('deduceLocation').value;
+  const motive = document.getElementById('deduceMotive').value;
+  if (!culprit || !location || !motive) {
+    showToast('请填写全部三项');
+    return;
+  }
+  fetch('/api/deduce', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ culprit, location, motive })
+  })
+    .then(res => res.json())
+    .then(data => {
+      const box = document.getElementById('deductionResult');
+      box.innerHTML = data.correct
+        ? `<div class="result-box"><strong style="color:var(--ok);">案件告破</strong><br>Morgan 用涂毒眼镜完成谋杀，动机来自合同经济纠纷。</div>`
+        : `<div class="result-box"><strong style="color:var(--danger);">推理有误</strong><br>证据链还不完整，继续调查。</div>`;
+    })
+    .catch(err => showToast(`提交失败：${err.message}`));
+}
+
+function updateConditionsUI(conditions) {
+  const pct = totalConditions ? Math.round((conditions.length / totalConditions) * 100) : 0;
+  document.getElementById('progressCount').textContent = `已发现 ${conditions.length} / ${totalConditions} 条线索`;
+  document.getElementById('progressFill').style.width = `${pct}%`;
+  document.getElementById('conditionList').innerHTML = renderConditionItems(conditions);
+  updateInventory();
+}
+
+function renderConditionItems(conditions) {
+  let html = '';
+  for (let i = 0; i < totalConditions; i += 1) {
+    html += i < conditions.length
+      ? `<div class="condition-item unlocked">已发现：${escHtml(conditions[i])}</div>`
+      : `<div class="condition-item">??? 未发现的线索</div>`;
+  }
+  return html;
+}
+
+function updateInventory() {
+  const inv = document.getElementById('inventory');
+  if (!inv) return;
+  inv.innerHTML = collectedEvidence.size
+    ? Array.from(collectedEvidence).map(k => `<span class="chip">${escHtml(k)}</span>`).join('')
+    : '<span class="chip">尚未收集证物</span>';
+}
+
+function handleQuestionKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function isTyping() {
+  const tag = document.activeElement?.tagName;
+  return tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT';
+}
+
+function showToast(message) {
+  const old = document.querySelector('.toast');
+  if (old) old.remove();
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = message;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2800);
+}
+
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+}
+
+function escAttr(str) {
+  return String(str ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function escTextarea(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+document.addEventListener('keydown', e => {
+  if (document.getElementById('modalLayer').classList.contains('show') && e.key === 'Escape') {
+    closePanel();
+    return;
+  }
+  if (isTyping()) return;
+  const key = e.key.toLowerCase();
+  if (key === 'arrowup' || key === 'w') { e.preventDefault(); movePlayer(0, -1); }
+  if (key === 'arrowdown' || key === 's') { e.preventDefault(); movePlayer(0, 1); }
+  if (key === 'arrowleft' || key === 'a') { e.preventDefault(); movePlayer(-1, 0); }
+  if (key === 'arrowright' || key === 'd') { e.preventDefault(); movePlayer(1, 0); }
+  if (key === 'enter' || key === ' ') { e.preventDefault(); interact(); }
+});
+
+init();
+</script>
+</body>
+</html>

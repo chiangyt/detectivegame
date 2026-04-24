@@ -14,7 +14,8 @@ from script_manager import ScriptManager
 from npc_agent_manager import NPCAgentManager
 from evidence_handler import EvidenceHandler
 from llm_router import LLMRouter
-
+from langsmith.wrappers import wrap_anthropic
+from langsmith.wrappers import wrap_openai
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT_PATH = os.path.join(HERE, "script.json")
 
@@ -31,11 +32,12 @@ _anthropic_client = anthropic.Anthropic(api_key=_claude_key) if _claude_key else
 # LangSmith tracing — wraps clients if LANGSMITH_API_KEY is set
 if os.environ.get("LANGSMITH_API_KEY"):
     try:
-        from langsmith.wrappers import wrap_openai
         if _openai_client:
             _openai_client = wrap_openai(_openai_client)
         if _deepseek_client:
             _deepseek_client = wrap_openai(_deepseek_client)
+        if _anthropic_client:
+            _anthropic_client = wrap_anthropic(_anthropic_client)
         print("[LANGSMITH] Tracing enabled.")
     except ImportError:
         print("[LANGSMITH] langsmith not installed, skipping tracing.")
@@ -59,6 +61,11 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/rpg")
+def rpg():
+    return render_template("rpg.html")
+
+
 @app.route("/api/game-data")
 def game_data():
     npcs = [{"npc_name": n["npc_name"]} for n in raw_data["npcs"]]
@@ -66,6 +73,7 @@ def game_data():
         "case_description": raw_data["case_description"],
         "npcs": npcs,
         "evidence_keys": list(raw_data["evidence"].keys()),
+        "required_total": len(script_mgr.get_required_condition_names()),
     })
 
 
@@ -107,7 +115,7 @@ def search_evidence():
 
 
 DETECTIVE_PROVIDERS = {
-    "deepseek":  lambda: LLMRouter("openai",     _deepseek_client,   "deepseek-reasoner"),
+    "deepseek":  lambda: LLMRouter("openai",     _deepseek_client,   "deepseek-v4-pro"),
     "claude":    lambda: LLMRouter("anthropic",  _anthropic_client,  "claude-sonnet-4-6"),
     "openai":    lambda: LLMRouter("openai",     _openai_client,     "gpt-4o"),
 }
@@ -115,6 +123,7 @@ DETECTIVE_PROVIDERS = {
 @app.route("/api/auto-investigate")
 def auto_investigate():
     from detective_agent import DetectiveAgent
+    from judge_agent import JudgeAgent
     provider = request.args.get("provider", "deepseek")
     if provider not in DETECTIVE_PROVIDERS:
         return jsonify({"error": f"Unknown provider '{provider}'. Choose from: {list(DETECTIVE_PROVIDERS)}"}), 400
@@ -127,11 +136,20 @@ def auto_investigate():
         model="gpt-4o-mini",
     )
     detective_evidence_handler = EvidenceHandler(detective_script_mgr)
+    judge_agent = None
+    if _anthropic_client:
+        judge_router = LLMRouter("anthropic", _anthropic_client, "claude-sonnet-4-6")
+        judge_agent = JudgeAgent(
+            router=judge_router,
+            case_description=detective_script_mgr.raw_script["case_description"],
+            evidence=detective_script_mgr.get_evidence(),
+        )
     detective = DetectiveAgent(
         agent_manager=detective_agent_mgr,
         script_mgr=detective_script_mgr,
         evidence_handler=detective_evidence_handler,
         router=router,
+        judge_agent=judge_agent,
     )
 
     def generate():
@@ -150,6 +168,7 @@ def get_conditions():
     return jsonify({
         "conditions": script_mgr.get_required_conditions(),
         "all_met": script_mgr.has_solved_all_conditions(),
+        "required_total": len(script_mgr.get_required_condition_names()),
     })
 
 

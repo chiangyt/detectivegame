@@ -91,6 +91,10 @@ class ScriptManager:
         required = self.triggers_data.get("required_for_deduction", [])
         return [c for c in required if c in self.conditions]
 
+    def get_required_condition_names(self):
+        """Return all condition names required for deduction, in display order."""
+        return list(self.triggers_data.get("required_for_deduction", []))
+
     def get_trigger_fingerprints(self):
         """Return conditions list from triggers.json (used by ConditionDetector)."""
         return self.triggers_data.get("conditions", [])

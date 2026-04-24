@@ -22,7 +22,10 @@ CLAUDE_API_KEY=sk-ant-...
 python app.py
 ```
 
-浏览器访问 `http://localhost:5000`
+浏览器访问：
+
+- `http://localhost:5000`：原 noir 三栏审讯 UI
+- `http://localhost:5000/rpg`：RPGMaker 风格像素餐馆探索 UI
 
 ---
 
@@ -30,10 +33,12 @@ python app.py
 
 1. **阅读案情摘要** — 点击粗体证物名称收集到证据室
 2. **审讯嫌疑人** — 选择嫌疑人卡片，自由提问
-3. **发现线索** — 问到关键信息时自动触发线索（共 5 条）
+3. **发现线索** — 问到关键信息时自动触发线索（共 6 条）
 4. **最终指控** — 集齐全部线索后解锁，指出凶手、作案手法、动机
 
 > 线索之间存在依赖关系，部分信息需按顺序触发才能获得。
+
+RPG 页面中，玩家移动小侦探接近 NPC、案发餐桌、证物台、AI 终端和 Exit 入口来打开对应交互。证物报告集中在证物台查看，调查进度由后端 `required_total` 驱动渲染。
 
 ---
 
@@ -43,7 +48,7 @@ python app.py
 
 | Provider | 模型 |
 |----------|------|
-| `deepseek`（默认）| DeepSeek `deepseek-reasoner` |
+| `deepseek`（默认）| DeepSeek `deepseek-v4-pro` |
 | `claude` | Anthropic `claude-sonnet-4-6` |
 | `openai` | OpenAI `gpt-4o` |
 
@@ -54,7 +59,8 @@ http://localhost:5000/api/auto-investigate?provider=deepseek
 - 侦探通过 tool use 调用 `ask_npc`、`search_evidence`、`deduce_crime_process`、`make_accusation`
 - 提交作案机制推断时，Claude 裁判会介入评审——推理不自洽则驳回并要求重新调查
 - 发现新线索时，系统自动向侦探注入提示，引导调查方向
-- 必须触发全部 5 条线索后，才能提交最终指控
+- 必须触发全部 6 条线索后，才能提交最终指控
+- 作案过程推断需要先收集 4 条物证/机会线索：眼镜腿异常、Morgan 平时戴眼镜、Morgan 当天没戴眼镜、Morgan 第一个查看 Daniel 尸体
 
 ---
 
@@ -66,7 +72,7 @@ http://localhost:5000/api/auto-investigate?provider=deepseek
 | AI 侦探 | 可切换：DeepSeek / Claude / OpenAI，通过 `LLMRouter` 统一接口 |
 | 裁判 | Anthropic `claude-sonnet-4-6`，强制 tool use 返回结构化裁决 |
 | 后端 | Flask + `stream_with_context`
-| 前端 | 原生 HTML/CSS/JS，noir 复古风格，三栏布局 |
+| 前端 | 原生 HTML/CSS/JS，`/` noir 三栏布局 + `/rpg` 像素餐馆探索 |
 | 条件检测 | 关键词指纹匹配，零额外 API 开销 |
 | NPC 知识 | 条件触发后动态 override，实时刷新 system prompt |
 
@@ -89,6 +95,9 @@ Detective/
 │   ├── morgan.json
 │   ├── lucas.json
 │   └── triggers.json
-├── templates/index.html    # Web UI
+├── templates/
+│   ├── index.html          # 原 noir Web UI
+│   └── rpg.html            # RPGMaker 风格像素探索 UI
+├── static/assets/npcs/     # RPG 页面 NPC / 侦探像素 PNG
 └── requirements.txt
 ```

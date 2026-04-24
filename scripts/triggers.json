@@ -69,6 +69,15 @@
       "overrides": []
     },
     {
+      "name": "Morgan第一个查看Daniel尸体",
+      "trigger_npc": "Lucas",
+      "trigger_fact_idx": 9,
+      "keywords": ["Morgan", "第一个", "查看", "Daniel", "倒"],
+      "min_matches": 3,
+      "depends_on": null,
+      "overrides": []
+    },
+    {
       "name": "Lucas提到Daniel骂人",
       "trigger_npc": "Lucas",
       "trigger_fact_idx": 12,
@@ -89,6 +98,7 @@
     "Morgan平时戴眼镜",
     "Morgan今天没戴眼镜",
     "Morgan突然签了合同",
-    "Morgan和Daniel有经济纠纷"
+    "Morgan和Daniel有经济纠纷",
+    "Morgan第一个查看Daniel尸体"
   ]
 }

@@ -702,7 +702,7 @@
       <div class="progress-panel" id="progressPanel">
         <div class="progress-title">调查进度</div>
         <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
-        <div class="progress-count" id="progressCount">已发现 0 / 5 条线索</div>
+        <div class="progress-count" id="progressCount">已发现 0 / 6 条线索</div>
         <div class="condition-list" id="conditionList"></div>
       </div>
     </div>
@@ -810,7 +810,7 @@
 // ============================================================
 // GAME STATE
 // ============================================================
-const TOTAL_CONDITIONS = 5;
+let totalConditions = 6;
 const suspects = [
   { name: 'Jordan', icon: '\uD83D\uDC54', role: '初级同事', desc: 'Daniel的下属。紧张、安静，明显受到过恐吓。' },
   { name: 'Morgan', icon: '\uD83D\uDC88', role: '理发店老板', desc: '餐馆隔壁的店主。说话谨慎，显得疲惫。' },
@@ -857,6 +857,7 @@ async function initGame() {
       </div>
     `).join('');
 
+    totalConditions = data.required_total || totalConditions;
     updateConditionsUI([]);
   } catch (e) {
     console.error('初始化失败:', e);
@@ -1088,14 +1089,14 @@ async function showEvidenceDetail(el, name) {
 // ============================================================
 function updateConditionsUI(conditions) {
   const count = conditions.length;
-  const pct = (count / TOTAL_CONDITIONS) * 100;
+  const pct = totalConditions ? (count / totalConditions) * 100 : 0;
 
   document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('progressCount').textContent = `已发现 ${count} / ${TOTAL_CONDITIONS} 条线索`;
+  document.getElementById('progressCount').textContent = `已发现 ${count} / ${totalConditions} 条线索`;
 
   const list = document.getElementById('conditionList');
   let html = '';
-  for (let i = 0; i < TOTAL_CONDITIONS; i++) {
+  for (let i = 0; i < totalConditions; i++) {
     if (i < conditions.length) {
       html += `<div class="condition-item unlocked">\u2713 ${escHtml(conditions[i])}</div>`;
     } else {

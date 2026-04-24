@@ -24,9 +24,10 @@ class ToolCall:
 
 @dataclass
 class LLMResponse:
-    finish_reason: str   # "stop" | "tool_calls"
+    finish_reason: str   # "stop" | "tool_calls" | "invalid_tool_calls"
     content: str | None
     tool_calls: list[ToolCall] = field(default_factory=list)
+    reasoning_content: str | None = None
     raw: Any = None
 
 
@@ -52,6 +53,8 @@ class LLMRouter:
     def make_assistant_message(self, response: LLMResponse) -> dict:
         """Build the canonical assistant message to append to history."""
         msg: dict = {"role": "assistant", "content": response.content}
+        if response.reasoning_content:
+            msg["reasoning_content"] = response.reasoning_content
         if response.tool_calls:
             msg["tool_calls"] = [
                 {"id": tc.id, "name": tc.name, "input": tc.input}
@@ -76,15 +79,39 @@ class LLMRouter:
         )
         choice = resp.choices[0]
         msg    = choice.message
+        reasoning_content = self._get_extra_message_field(msg, "reasoning_content")
 
-        tool_calls = [
-            ToolCall(id=tc.id, name=tc.function.name, input=json.loads(tc.function.arguments))
-            for tc in (msg.tool_calls or [])
-        ]
+        tool_calls = []
+        invalid_tool_calls = []
+        for tc in (msg.tool_calls or []):
+            try:
+                tool_input = json.loads(tc.function.arguments or "{}")
+            except json.JSONDecodeError as exc:
+                invalid_tool_calls.append({
+                    "name": tc.function.name,
+                    "arguments": tc.function.arguments or "",
+                    "error": str(exc),
+                })
+                continue
+            tool_calls.append(ToolCall(id=tc.id, name=tc.function.name, input=tool_input))
+
+        if invalid_tool_calls:
+            details = "; ".join(
+                f"{item['name']}: {item['error']}" for item in invalid_tool_calls
+            )
+            return LLMResponse(
+                finish_reason="invalid_tool_calls",
+                content=f"工具调用参数不是合法 JSON，请重新调用工具。错误：{details}",
+                tool_calls=[],
+                reasoning_content=reasoning_content,
+                raw=resp,
+            )
+
         return LLMResponse(
             finish_reason="tool_calls" if choice.finish_reason == "tool_calls" else "stop",
             content=msg.content,
             tool_calls=tool_calls,
+            reasoning_content=reasoning_content,
             raw=resp,
         )
 
@@ -106,6 +133,8 @@ class LLMRouter:
                 result.append({"role": role, "content": m["content"]})
             elif role == "assistant":
                 msg: dict = {"role": "assistant", "content": m.get("content")}
+                if m.get("reasoning_content"):
+                    msg["reasoning_content"] = m["reasoning_content"]
                 if m.get("tool_calls"):
                     msg["tool_calls"] = [
                         {
@@ -126,6 +155,18 @@ class LLMRouter:
                     "content": m["content"],
                 })
         return result
+
+    @staticmethod
+    def _get_extra_message_field(message, field: str):
+        value = getattr(message, field, None)
+        if value is not None:
+            return value
+        model_extra = getattr(message, "model_extra", None)
+        if isinstance(model_extra, dict):
+            return model_extra.get(field)
+        if isinstance(message, dict):
+            return message.get(field)
+        return None
 
     # ── Anthropic ────────────────────────────────────────────────────────────
 
